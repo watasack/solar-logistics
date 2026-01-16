@@ -273,22 +273,25 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden">
+      {/* 背景エフェクト */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMxZTI5M2IiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxIDEuNzktNCAzLjk5OC00SDQwYzIuMjEgMCA0IDEuNzkgNCAzLjk5OFY0MGMwIDIuMjEtMS43OSA0LTMuOTk4IDRINDBWNDZ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>
+
       {/* ヘッダー */}
-      <div className="border-b border-slate-800 bg-slate-900/50 backdrop-blur">
+      <div className="relative glass-effect-strong border-b border-slate-700/50 shadow-xl animate-slide-in-down">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+            <div className="animate-slide-in-left">
+              <h1 className="text-3xl font-bold text-gradient-rainbow animate-float">
                 Solar Logistics
               </h1>
-              <p className="text-sm text-slate-400">太陽系補給線マネジメント</p>
+              <p className="text-sm text-slate-400 mt-1">太陽系補給線マネジメント</p>
             </div>
-            <div className="flex items-center gap-4 sm:gap-6 text-sm">
+            <div className="flex items-center gap-3 sm:gap-4 text-sm animate-slide-in-right">
               <Tooltip content="セーブ/ロード" position="bottom">
                 <button
                   onClick={handleOpenSaveLoad}
-                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all hover:scale-105"
+                  className="button-enhanced px-3 py-2 glass-effect hover-glow rounded-lg text-lg"
                 >
                   💾
                 </button>
@@ -296,7 +299,7 @@ export default function Home() {
               <Tooltip content="統計情報を表示" position="bottom">
                 <button
                   onClick={() => setShowStatistics(true)}
-                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all hover:scale-105"
+                  className="button-enhanced px-3 py-2 glass-effect hover-glow rounded-lg text-lg"
                 >
                   📊
                 </button>
@@ -304,24 +307,27 @@ export default function Home() {
               <Tooltip content="チュートリアルを表示" position="bottom">
                 <button
                   onClick={handleShowTutorial}
-                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all hover:scale-105"
+                  className="button-enhanced px-3 py-2 glass-effect hover-glow rounded-lg text-lg"
                 >
                   ❓
                 </button>
               </Tooltip>
-              <div>
-                <span className="text-slate-400">年月:</span>{' '}
-                <span className="font-mono text-blue-400">{gameState.year}年 {gameState.month}月</span>
-              </div>
-              <div>
-                <span className="text-slate-400">ターン:</span>{' '}
-                <span className="font-mono">{gameState.currentTurn}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">予算:</span>{' '}
-                <span className={`font-mono font-bold ${gameState.budget > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {gameState.budget.toLocaleString()} cr
-                </span>
+              <div className="hidden sm:block h-8 w-px bg-slate-700"></div>
+              <div className="hidden md:flex items-center gap-3">
+                <div className="glass-effect px-3 py-2 rounded-lg">
+                  <span className="text-slate-400 text-xs">年月:</span>{' '}
+                  <span className="font-mono text-gradient-blue font-bold">{gameState.year}年 {gameState.month}月</span>
+                </div>
+                <div className="glass-effect px-3 py-2 rounded-lg">
+                  <span className="text-slate-400 text-xs">ターン:</span>{' '}
+                  <span className="font-mono text-white font-bold">{gameState.currentTurn}</span>
+                </div>
+                <div className="glass-effect px-3 py-2 rounded-lg">
+                  <span className="text-slate-400 text-xs">予算:</span>{' '}
+                  <span className={`font-mono font-bold ${gameState.budget > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {gameState.budget.toLocaleString()} cr
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -333,8 +339,8 @@ export default function Home() {
           {/* 左カラム: マップ */}
           <div className="lg:col-span-2 space-y-4">
             {/* スコアボード */}
-            <div className="score-board bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-3 sm:p-4 animate-fade-in">
-              <h2 className="text-base sm:text-lg font-bold mb-2 sm:mb-3">パフォーマンス指標</h2>
+            <div className="score-board card-enhanced rounded-xl p-4 sm:p-5 animate-slide-in-left">
+              <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-gradient-blue">パフォーマンス指標</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div>
                   <div className="text-xs text-slate-400 mb-1">配送達成率</div>
@@ -392,7 +398,7 @@ export default function Home() {
             </div>
 
             {/* マップ */}
-            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4 animate-fade-in">
+            <div className="card-enhanced rounded-xl p-4 animate-slide-in-left" style={{ animationDelay: '0.1s' }}>
               <div className="solar-system-map aspect-square">
                 <SolarSystemMap
                   colonies={gameState.colonies}
@@ -409,8 +415,8 @@ export default function Home() {
           {/* 右カラム: 情報とアクション */}
           <div className="space-y-4">
             {/* 収支 */}
-            <div className="budget-display bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
-              <h2 className="text-lg font-bold mb-3">今月の収支</h2>
+            <div className="budget-display card-enhanced rounded-xl p-4 animate-slide-in-right">
+              <h2 className="text-lg font-bold mb-3 text-gradient-purple">今月の収支</h2>
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-400">収入</span>
@@ -478,14 +484,14 @@ export default function Home() {
             )}
 
             {/* アクション */}
-            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4 animate-fade-in">
-              <h2 className="text-lg font-bold mb-3">アクション</h2>
-              <div className="space-y-2">
+            <div className="card-enhanced rounded-xl p-4 animate-slide-in-right" style={{ animationDelay: '0.1s' }}>
+              <h2 className="text-lg font-bold mb-3 text-gradient-blue">アクション</h2>
+              <div className="space-y-3">
                 <Tooltip content="時間を進めて物資を自動配送します" position="left">
                   <button
                     onClick={handleNextTurn}
                     disabled={isProcessing}
-                    className="next-turn-button w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                    className="button-enhanced next-turn-button w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-xl shadow-lg hover:shadow-xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 active:scale-95"
                   >
                     {isProcessing ? (
                       <span className="flex items-center justify-center gap-2">
@@ -501,7 +507,7 @@ export default function Home() {
                   <button
                     onClick={() => setShowBuildMenu(!showBuildMenu)}
                     disabled={isProcessing}
-                    className="build-depot-button w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                    className="button-enhanced build-depot-button w-full bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-xl shadow-lg hover:shadow-xl hover:shadow-green-500/50 transition-all duration-300 hover:scale-105 active:scale-95"
                   >
                     🏗️ デポを建設
                   </button>
@@ -510,7 +516,7 @@ export default function Home() {
                   <button
                     onClick={handleOptimize}
                     disabled={isProcessing}
-                    className="optimize-button w-full bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                    className="button-enhanced optimize-button w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-xl shadow-lg hover:shadow-xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95"
                   >
                     {isProcessing ? (
                       <span className="flex items-center justify-center gap-2">

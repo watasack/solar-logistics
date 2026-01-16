@@ -83,8 +83,8 @@ export default function Statistics({ gameState, onClose }: StatisticsProps) {
     const gridValues = createGridValues(min, max);
 
     return (
-      <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-        <h3 className="text-lg font-bold text-white mb-3">{title}</h3>
+      <div className="card-enhanced rounded-xl p-4 border-2 border-slate-600/30">
+        <h3 className="text-lg font-bold text-gradient-blue mb-3">{title}</h3>
         <svg width={graphWidth} height={graphHeight} className="overflow-visible">
           {/* グリッドライン */}
           {gridValues.map((value, index) => {
@@ -207,25 +207,25 @@ export default function Statistics({ gameState, onClose }: StatisticsProps) {
   return (
     <>
       {/* オーバーレイ */}
-      <div className="fixed inset-0 bg-black/80 z-50 animate-fade-in" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 animate-fade-in" onClick={onClose} />
 
       {/* モーダル */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-slate-900 border-2 border-slate-700 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto animate-slide-in-up">
+        <div className="glass-effect-strong border-2 border-slate-600/50 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto animate-slide-in-up">
           {/* ヘッダー */}
-          <div className="border-b border-slate-700 p-6">
+          <div className="border-b border-slate-600/50 p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-                  統計情報
+                <h1 className="text-3xl font-bold text-gradient-rainbow">
+                  📊 統計情報
                 </h1>
-                <p className="text-slate-400 mt-1">
+                <p className="text-slate-300 mt-1 font-mono">
                   {gameState.year}年{gameState.month}月 (ターン {gameState.currentTurn})
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                className="button-enhanced px-5 py-3 glass-effect hover-glow rounded-xl font-bold transition-all"
               >
                 閉じる
               </button>
