@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import SolarSystemMap from '@/components/SolarSystemMap';
 import Toast, { ToastProps } from '@/components/Toast';
 import Tooltip from '@/components/Tooltip';
+import Tutorial from '@/components/Tutorial';
 import { GameState, Colony, Depot, DepotType } from '@/lib/types';
 import { initializeGame, advanceTurn, buildDepot, autoSupply } from '@/lib/gameLogic';
 import { buildableSites, depotSpecs } from '@/lib/solarSystemData';
 import { generateRecommendedPlacement } from '@/lib/optimizer';
+import { tutorialSteps } from '@/lib/tutorialSteps';
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -18,10 +20,17 @@ export default function Home() {
   const [selectedDepotType, setSelectedDepotType] = useState<DepotType>('standard');
   const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // ゲームを初期化
   useEffect(() => {
     setGameState(initializeGame());
+
+    // チュートリアル完了状態をチェック
+    const tutorialCompleted = localStorage.getItem('tutorial_completed');
+    if (!tutorialCompleted) {
+      setShowTutorial(true);
+    }
   }, []);
 
   if (!gameState) {
@@ -107,6 +116,27 @@ export default function Home() {
     }, 500);
   };
 
+  // チュートリアル完了
+  const handleTutorialComplete = () => {
+    localStorage.setItem('tutorial_completed', 'true');
+    setShowTutorial(false);
+    setToast({
+      message: 'チュートリアル完了！さあ、太陽系の補給線を構築しましょう！',
+      type: 'success',
+    });
+  };
+
+  // チュートリアルスキップ
+  const handleTutorialSkip = () => {
+    localStorage.setItem('tutorial_completed', 'true');
+    setShowTutorial(false);
+  };
+
+  // チュートリアルを再表示
+  const handleShowTutorial = () => {
+    setShowTutorial(true);
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       {/* ヘッダー */}
@@ -119,7 +149,15 @@ export default function Home() {
               </h1>
               <p className="text-sm text-slate-400">太陽系補給線マネジメント</p>
             </div>
-            <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-4 sm:gap-6 text-sm">
+              <Tooltip content="チュートリアルを表示" position="bottom">
+                <button
+                  onClick={handleShowTutorial}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all hover:scale-105"
+                >
+                  ❓
+                </button>
+              </Tooltip>
               <div>
                 <span className="text-slate-400">年月:</span>{' '}
                 <span className="font-mono text-blue-400">{gameState.year}年 {gameState.month}月</span>
@@ -144,7 +182,7 @@ export default function Home() {
           {/* 左カラム: マップ */}
           <div className="lg:col-span-2 space-y-4">
             {/* スコアボード */}
-            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-3 sm:p-4 animate-fade-in">
+            <div className="score-board bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-3 sm:p-4 animate-fade-in">
               <h2 className="text-base sm:text-lg font-bold mb-2 sm:mb-3">パフォーマンス指標</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div>
@@ -204,7 +242,7 @@ export default function Home() {
 
             {/* マップ */}
             <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4 animate-fade-in">
-              <div className="aspect-square">
+              <div className="solar-system-map aspect-square">
                 <SolarSystemMap
                   colonies={gameState.colonies}
                   depots={gameState.depots}
@@ -220,7 +258,7 @@ export default function Home() {
           {/* 右カラム: 情報とアクション */}
           <div className="space-y-4">
             {/* 収支 */}
-            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
+            <div className="budget-display bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
               <h2 className="text-lg font-bold mb-3">今月の収支</h2>
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -296,7 +334,7 @@ export default function Home() {
                   <button
                     onClick={handleNextTurn}
                     disabled={isProcessing}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                    className="next-turn-button w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
                   >
                     {isProcessing ? (
                       <span className="flex items-center justify-center gap-2">
@@ -312,7 +350,7 @@ export default function Home() {
                   <button
                     onClick={() => setShowBuildMenu(!showBuildMenu)}
                     disabled={isProcessing}
-                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                    className="build-depot-button w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
                   >
                     🏗️ デポを建設
                   </button>
@@ -321,7 +359,7 @@ export default function Home() {
                   <button
                     onClick={handleOptimize}
                     disabled={isProcessing}
-                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                    className="optimize-button w-full bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
                   >
                     {isProcessing ? (
                       <span className="flex items-center justify-center gap-2">
@@ -423,6 +461,15 @@ export default function Home() {
           type={toast.type}
           duration={toast.duration}
           onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* チュートリアル */}
+      {showTutorial && (
+        <Tutorial
+          steps={tutorialSteps}
+          onComplete={handleTutorialComplete}
+          onSkip={handleTutorialSkip}
         />
       )}
     </main>
