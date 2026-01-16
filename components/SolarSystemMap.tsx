@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Colony, Depot, CelestialBody, Route } from '@/lib/types';
 import Tooltip from './Tooltip';
 
@@ -12,6 +12,15 @@ interface SolarSystemMapProps {
   onSelectDepot?: (depot: Depot) => void;
   onSelectLocation?: (body: CelestialBody) => void;
   selectedId?: string;
+}
+
+// パーティクル（背景の星）
+interface Particle {
+  x: number;
+  y: number;
+  size: number;
+  opacity: number;
+  twinkleSpeed: number;
 }
 
 /**
@@ -28,6 +37,7 @@ export default function SolarSystemMap({
   selectedId,
 }: SolarSystemMapProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [particles, setParticles] = useState<Particle[]>([]);
 
   // SVGのサイズ
   const width = 800;
@@ -35,6 +45,21 @@ export default function SolarSystemMap({
   const centerX = width / 2;
   const centerY = height / 2;
   const scale = 60; // 1AU = 60px
+
+  // パーティクル（星）を初期化
+  useEffect(() => {
+    const newParticles: Particle[] = [];
+    for (let i = 0; i < 100; i++) {
+      newParticles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        size: Math.random() * 2 + 0.5,
+        opacity: Math.random() * 0.7 + 0.3,
+        twinkleSpeed: Math.random() * 0.02 + 0.01,
+      });
+    }
+    setParticles(newParticles);
+  }, []);
 
   // 極座標から直交座標に変換
   const polarToCartesian = (radius: number, angle: number) => {
@@ -83,17 +108,67 @@ export default function SolarSystemMap({
   return (
     <div className="w-full h-full bg-slate-950 rounded-lg overflow-hidden relative">
       <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
-        {/* 太陽 - グロー効果付き */}
         <defs>
+          {/* 太陽のグラデーション */}
           <radialGradient id="sunGlow">
             <stop offset="0%" stopColor="#fbbf24" stopOpacity="1" />
             <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.6" />
             <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
           </radialGradient>
+          <radialGradient id="sunCore">
+            <stop offset="0%" stopColor="#fef3c7" stopOpacity="1" />
+            <stop offset="50%" stopColor="#fbbf24" stopOpacity="1" />
+            <stop offset="100%" stopColor="#f59e0b" stopOpacity="1" />
+          </radialGradient>
+          {/* フィルター：グロー効果 */}
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          {/* フィルター：強いグロー効果 */}
+          <filter id="strongGlow">
+            <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
         </defs>
-        <circle cx={centerX} cy={centerY} r={30} fill="url(#sunGlow)" className="animate-pulse-slow" />
-        <circle cx={centerX} cy={centerY} r={12} fill="#fbbf24" />
-        <circle cx={centerX} cy={centerY} r={16} fill="#fbbf24" opacity={0.3} />
+
+        {/* 背景の星（パーティクル） */}
+        {particles.map((particle, i) => (
+          <circle
+            key={`particle-${i}`}
+            cx={particle.x}
+            cy={particle.y}
+            r={particle.size}
+            fill="#ffffff"
+            opacity={particle.opacity}
+          >
+            <animate
+              attributeName="opacity"
+              values={`${particle.opacity};${particle.opacity * 0.3};${particle.opacity}`}
+              dur={`${2 + Math.random() * 3}s`}
+              repeatCount="indefinite"
+            />
+          </circle>
+        ))}
+
+        {/* 太陽 - 強化されたグロー効果 */}
+        <g filter="url(#strongGlow)">
+          <circle cx={centerX} cy={centerY} r={50} fill="url(#sunGlow)" opacity="0.4">
+            <animate attributeName="r" values="45;55;45" dur="4s" repeatCount="indefinite" />
+          </circle>
+          <circle cx={centerX} cy={centerY} r={30} fill="url(#sunGlow)" opacity="0.6">
+            <animate attributeName="r" values="28;32;28" dur="3s" repeatCount="indefinite" />
+          </circle>
+          <circle cx={centerX} cy={centerY} r={15} fill="url(#sunCore)">
+            <animate attributeName="r" values="14;16;14" dur="2s" repeatCount="indefinite" />
+          </circle>
+        </g>
 
         {/* 軌道の描画 */}
         {[0.39, 0.72, 1.0, 1.52, 2.77, 5.2, 9.54].map((radius, i) => (
@@ -110,7 +185,7 @@ export default function SolarSystemMap({
         ))}
 
         {/* アクティブな輸送ルートの描画 */}
-        {routes.filter(r => r.status === 'in_transit').map(route => {
+        {routes.filter(r => r.status === 'in_transit').map((route, idx) => {
           const from = depots.find(d => d.id === route.from);
           const to = colonies.find(c => c.id === route.to);
           if (!from || !to) return null;
@@ -118,33 +193,75 @@ export default function SolarSystemMap({
           const fromPos = polarToCartesian(from.orbitalRadius, from.currentAngle);
           const toPos = polarToCartesian(to.orbitalRadius, to.currentAngle);
 
+          // 曲線パスを計算（ベジェ曲線）
+          const midX = (fromPos.x + toPos.x) / 2;
+          const midY = (fromPos.y + toPos.y) / 2;
+          const dx = toPos.x - fromPos.x;
+          const dy = toPos.y - fromPos.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const curvature = distance * 0.2;
+
+          // 曲線の制御点（軌道に沿うような曲線）
+          const controlX = midX - dy * curvature / distance;
+          const controlY = midY + dx * curvature / distance;
+
+          const pathId = `route-${route.id}`;
+          const curvePath = `M ${fromPos.x} ${fromPos.y} Q ${controlX} ${controlY} ${toPos.x} ${toPos.y}`;
+
           return (
-            <g key={route.id}>
-              <line
-                x1={fromPos.x}
-                y1={fromPos.y}
-                x2={toPos.x}
-                y2={toPos.y}
-                stroke="#3b82f6"
+            <g key={route.id} filter="url(#glow)">
+              {/* 航路の軌跡（グラデーション） */}
+              <defs>
+                <linearGradient id={`grad-${route.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                  <stop offset="50%" stopColor="#60a5fa" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.3" />
+                </linearGradient>
+              </defs>
+
+              <path
+                id={pathId}
+                d={curvePath}
+                stroke={`url(#grad-${route.id})`}
                 strokeWidth={2}
-                opacity={0.6}
-                strokeDasharray="5 5"
-                className="animate-pulse"
-              />
-              {/* 輸送船のアニメーション */}
-              <circle
-                cx={fromPos.x + (toPos.x - fromPos.x) * 0.5}
-                cy={fromPos.y + (toPos.y - fromPos.y) * 0.5}
-                r={3}
-                fill="#60a5fa"
-                className="animate-pulse"
+                fill="none"
+                opacity={0.8}
               >
-                <animateMotion
-                  dur="3s"
+                <animate
+                  attributeName="stroke-dasharray"
+                  values="0,1000;1000,0"
+                  dur="2s"
                   repeatCount="indefinite"
-                  path={`M ${fromPos.x} ${fromPos.y} L ${toPos.x} ${toPos.y}`}
                 />
-              </circle>
+              </path>
+
+              {/* 輸送船本体 */}
+              <g filter="url(#glow)">
+                <circle r={4} fill="#60a5fa">
+                  <animateMotion
+                    dur={`${3 + idx * 0.5}s`}
+                    repeatCount="indefinite"
+                    path={curvePath}
+                  />
+                </circle>
+                {/* 輸送船の光の軌跡 */}
+                <circle r={2} fill="#93c5fd" opacity="0.6">
+                  <animateMotion
+                    dur={`${3 + idx * 0.5}s`}
+                    repeatCount="indefinite"
+                    path={curvePath}
+                    begin="0.1s"
+                  />
+                </circle>
+                <circle r={1.5} fill="#dbeafe" opacity="0.4">
+                  <animateMotion
+                    dur={`${3 + idx * 0.5}s`}
+                    repeatCount="indefinite"
+                    path={curvePath}
+                    begin="0.2s"
+                  />
+                </circle>
+              </g>
             </g>
           );
         })}
@@ -189,7 +306,6 @@ export default function SolarSystemMap({
           const size = getBodySize(colony);
           const color = getBodyColor(colony);
           const isSelected = selectedId === colony.id;
-
           const isHovered = hoveredId === colony.id;
 
           return (
@@ -199,39 +315,99 @@ export default function SolarSystemMap({
               onMouseEnter={() => setHoveredId(colony.id)}
               onMouseLeave={() => setHoveredId(null)}
               className="cursor-pointer transition-all duration-300"
-              style={{ transform: isHovered ? 'scale(1.2)' : 'scale(1)', transformOrigin: `${pos.x}px ${pos.y}px` }}
             >
+              {/* 選択時の外側の輪 */}
               {(isSelected || isHovered) && (
+                <>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={size + 8}
+                    fill="none"
+                    stroke={isSelected ? "#60a5fa" : "#3b82f6"}
+                    strokeWidth={2}
+                    opacity={0.6}
+                  >
+                    <animate
+                      attributeName="r"
+                      values={`${size + 6};${size + 10};${size + 6}`}
+                      dur="2s"
+                      repeatCount="indefinite"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0.6;0.3;0.6"
+                      dur="2s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={size + 4}
+                    fill="none"
+                    stroke={isSelected ? "#60a5fa" : "#3b82f6"}
+                    strokeWidth={1}
+                    opacity={0.8}
+                  />
+                </>
+              )}
+
+              {/* コロニー本体（グロー効果付き） */}
+              <g filter="url(#glow)">
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={size + 6}
-                  fill="none"
-                  stroke={isSelected ? "#60a5fa" : "#3b82f6"}
-                  strokeWidth={2}
-                  className={isHovered ? "animate-pulse" : ""}
-                />
-              )}
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r={size}
-                fill={color}
-                className={isHovered ? "animate-glow" : ""}
-              />
+                  r={size + 2}
+                  fill={color}
+                  opacity={0.3}
+                >
+                  <animate
+                    attributeName="r"
+                    values={`${size + 1};${size + 3};${size + 1}`}
+                    dur="3s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={size}
+                  fill={color}
+                >
+                  {isHovered && (
+                    <animate
+                      attributeName="r"
+                      values={`${size};${size * 1.2};${size}`}
+                      dur="0.5s"
+                      repeatCount="1"
+                    />
+                  )}
+                </circle>
+              </g>
+
               {/* 満足度インジケーター */}
               {colony.satisfaction < 50 && (
-                <circle
-                  cx={pos.x + size - 2}
-                  cy={pos.y - size + 2}
-                  r={3}
-                  fill="#ef4444"
-                  className="animate-pulse"
-                />
+                <g filter="url(#glow)">
+                  <circle
+                    cx={pos.x + size}
+                    cy={pos.y - size}
+                    r={3}
+                    fill="#ef4444"
+                  >
+                    <animate
+                      attributeName="opacity"
+                      values="1;0.3;1"
+                      dur="1s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                </g>
               )}
+
               <text
                 x={pos.x}
-                y={pos.y - size - 4}
+                y={pos.y - size - 6}
                 textAnchor="middle"
                 fill="#e2e8f0"
                 fontSize="10"
@@ -242,7 +418,7 @@ export default function SolarSystemMap({
               {/* 人口表示 */}
               <text
                 x={pos.x}
-                y={pos.y + size + 12}
+                y={pos.y + size + 14}
                 textAnchor="middle"
                 fill="#94a3b8"
                 fontSize="8"
@@ -268,30 +444,103 @@ export default function SolarSystemMap({
               onMouseEnter={() => setHoveredId(depot.id)}
               onMouseLeave={() => setHoveredId(null)}
               className="cursor-pointer transition-all duration-300"
-              style={{ transform: isHovered ? 'scale(1.2)' : 'scale(1)', transformOrigin: `${pos.x}px ${pos.y}px` }}
             >
+              {/* 選択時の外側の輪 */}
               {(isSelected || isHovered) && (
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={size + 6}
-                  fill="none"
-                  stroke={isSelected ? "#34d399" : "#10b981"}
-                  strokeWidth={2}
-                  className={isHovered ? "animate-pulse" : ""}
-                />
+                <>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={size + 8}
+                    fill="none"
+                    stroke={isSelected ? "#34d399" : "#10b981"}
+                    strokeWidth={2}
+                    opacity={0.6}
+                  >
+                    <animate
+                      attributeName="r"
+                      values={`${size + 6};${size + 10};${size + 6}`}
+                      dur="2s"
+                      repeatCount="indefinite"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0.6;0.3;0.6"
+                      dur="2s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={size + 4}
+                    fill="none"
+                    stroke={isSelected ? "#34d399" : "#10b981"}
+                    strokeWidth={1}
+                    opacity={0.8}
+                  />
+                </>
               )}
-              <rect
-                x={pos.x - size / 2}
-                y={pos.y - size / 2}
-                width={size}
-                height={size}
-                fill={color}
-                className={isHovered ? "animate-glow" : ""}
-              />
+
+              {/* デポ本体（グロー効果付き） */}
+              <g filter="url(#glow)">
+                {/* 外側のグロー */}
+                <rect
+                  x={pos.x - (size + 2) / 2}
+                  y={pos.y - (size + 2) / 2}
+                  width={size + 2}
+                  height={size + 2}
+                  fill={color}
+                  opacity={0.3}
+                  rx={2}
+                >
+                  <animate
+                    attributeName="width"
+                    values={`${size + 1};${size + 4};${size + 1}`}
+                    dur="3s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="height"
+                    values={`${size + 1};${size + 4};${size + 1}`}
+                    dur="3s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="x"
+                    values={`${pos.x - (size + 1) / 2};${pos.x - (size + 4) / 2};${pos.x - (size + 1) / 2}`}
+                    dur="3s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="y"
+                    values={`${pos.y - (size + 1) / 2};${pos.y - (size + 4) / 2};${pos.y - (size + 1) / 2}`}
+                    dur="3s"
+                    repeatCount="indefinite"
+                  />
+                </rect>
+                {/* 本体 */}
+                <rect
+                  x={pos.x - size / 2}
+                  y={pos.y - size / 2}
+                  width={size}
+                  height={size}
+                  fill={color}
+                  rx={2}
+                >
+                  <animateTransform
+                    attributeName="transform"
+                    type="rotate"
+                    values={`0 ${pos.x} ${pos.y};360 ${pos.x} ${pos.y}`}
+                    dur="20s"
+                    repeatCount="indefinite"
+                  />
+                </rect>
+              </g>
+
               <text
                 x={pos.x}
-                y={pos.y - size - 4}
+                y={pos.y - size - 6}
                 textAnchor="middle"
                 fill="#a7f3d0"
                 fontSize="10"
