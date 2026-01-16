@@ -8,6 +8,7 @@ import Tutorial from '@/components/Tutorial';
 import GameResult from '@/components/GameResult';
 import DifficultySelector from '@/components/DifficultySelector';
 import SaveLoadMenu from '@/components/SaveLoadMenu';
+import Statistics from '@/components/Statistics';
 import { GameState, Colony, Depot, DepotType, Difficulty } from '@/lib/types';
 import { initializeGame, advanceTurn, buildDepot, autoSupply } from '@/lib/gameLogic';
 import { buildableSites, depotSpecs } from '@/lib/solarSystemData';
@@ -27,6 +28,7 @@ export default function Home() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showDifficultySelector, setShowDifficultySelector] = useState(false);
   const [showSaveLoadMenu, setShowSaveLoadMenu] = useState(false);
+  const [showStatistics, setShowStatistics] = useState(false);
 
   // ゲームを初期化
   useEffect(() => {
@@ -289,6 +291,14 @@ export default function Home() {
                   className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all hover:scale-105"
                 >
                   💾
+                </button>
+              </Tooltip>
+              <Tooltip content="統計情報を表示" position="bottom">
+                <button
+                  onClick={() => setShowStatistics(true)}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all hover:scale-105"
+                >
+                  📊
                 </button>
               </Tooltip>
               <Tooltip content="チュートリアルを表示" position="bottom">
@@ -635,6 +645,14 @@ export default function Home() {
         <SaveLoadMenu
           onLoad={handleLoadGame}
           onClose={() => setShowSaveLoadMenu(false)}
+        />
+      )}
+
+      {/* 統計画面 */}
+      {showStatistics && (
+        <Statistics
+          gameState={gameState}
+          onClose={() => setShowStatistics(false)}
         />
       )}
     </main>
