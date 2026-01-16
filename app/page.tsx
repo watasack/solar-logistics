@@ -50,6 +50,30 @@ export default function Home() {
     }
   }, []);
 
+  // 難易度選択ハンドラー（早期リターンの前に定義）
+  const handleDifficultySelectEarly = (difficulty: Difficulty) => {
+    const newGame = initializeGame(difficulty);
+    setGameState(newGame);
+    setSelectedColony(null);
+    setSelectedDepot(null);
+    setShowBuildMenu(false);
+    setShowDifficultySelector(false);
+
+    // オートセーブ
+    saveGame(newGame);
+
+    // チュートリアル完了状態をチェック
+    const tutorialCompleted = localStorage.getItem('tutorial_completed');
+    if (!tutorialCompleted) {
+      setTimeout(() => setShowTutorial(true), 500);
+    }
+
+    setToast({
+      message: '新しいゲームを開始しました',
+      type: 'info',
+    });
+  };
+
   if (!gameState) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
@@ -58,6 +82,14 @@ export default function Home() {
         <div className="w-64 h-2 bg-slate-800 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" style={{ width: '60%' }}></div>
         </div>
+
+        {/* 難易度選択（gameStateがnullでも表示） */}
+        {showDifficultySelector && (
+          <DifficultySelector
+            onSelect={handleDifficultySelectEarly}
+            onCancel={() => setShowDifficultySelector(false)}
+          />
+        )}
       </div>
     );
   }
