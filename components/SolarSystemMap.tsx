@@ -70,27 +70,70 @@ export default function SolarSystemMap({
     };
   };
 
-  // 天体の色を取得
+  // 天体の色を取得（実際の惑星の色に近づける）
   const getBodyColor = (body: CelestialBody): string => {
     if ('population' in body) {
-      // コロニー
+      // コロニーは元の青を維持
       return '#3b82f6'; // blue
     }
     if ('depotType' in body) {
-      // デポ
+      // デポは元の緑を維持
       return '#10b981'; // green
     }
-    // 通常の天体
+
+    // 惑星・衛星ごとの固有色（実際の色に基づく）
+    const bodyColors: { [key: string]: string } = {
+      'mercury': '#8C7853',   // 水星: 灰色がかった茶色
+      'venus': '#FFC649',     // 金星: 黄金色（厚い雲）
+      'earth': '#4169E1',     // 地球: 青（海洋）
+      'moon': '#C0C0C0',      // 月: 銀灰色
+      'mars': '#CD5C5C',      // 火星: 赤褐色
+      'phobos': '#8B7355',    // フォボス: 暗い茶色
+      'ceres': '#B8860B',     // ケレス: 暗い金色
+      'vesta': '#A0826D',     // ベスタ: 灰茶色
+      'jupiter': '#C88B3A',   // 木星: オレンジ茶色（大赤斑）
+      'io': '#FFD700',        // イオ: 黄色（硫黄）
+      'europa': '#B0C4DE',    // エウロパ: 薄い青（氷）
+      'ganymede': '#8B7D6B',  // ガニメデ: 暗い茶色
+      'callisto': '#696969',  // カリスト: 暗い灰色
+      'saturn': '#F4A460',    // 土星: サンディブラウン
+      'titan': '#FFA500',     // タイタン: オレンジ（厚い大気）
+      'enceladus': '#E6F3FF', // エンケラドゥス: 青白（氷）
+    };
+
+    if (bodyColors[body.id]) {
+      return bodyColors[body.id];
+    }
+
+    // フォールバック（デフォルトの色）
     switch (body.type) {
       case 'planet':
         return '#8b5cf6'; // purple
       case 'moon':
-        return '#6b7280'; // gray
+        return '#9ca3af'; // gray
       case 'asteroid':
         return '#78716c'; // stone
       default:
         return '#9ca3af';
     }
+  };
+
+  // 惑星固有のグラデーションを取得
+  const getBodyGradient = (body: CelestialBody): string | null => {
+    const gradientMap: { [key: string]: string } = {
+      'earth': 'url(#earthGradient)',
+      'mars': 'url(#marsGradient)',
+      'jupiter': 'url(#jupiterStripes)',
+      'venus': 'url(#venusGradient)',
+      'saturn': 'url(#saturnGradient)',
+      'europa': 'url(#europaGradient)',
+      'io': 'url(#ioGradient)',
+      'titan': 'url(#titanGradient)',
+      'moon': 'url(#moonGradient)',
+      'mercury': 'url(#mercuryGradient)',
+    };
+
+    return gradientMap[body.id] || null;
   };
 
   // 天体のサイズを取得
@@ -136,6 +179,82 @@ export default function SolarSystemMap({
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
+
+          {/* 惑星固有のグラデーション */}
+
+          {/* 地球: 青い海と緑の陸地 */}
+          <radialGradient id="earthGradient">
+            <stop offset="0%" stopColor="#1e40af" />
+            <stop offset="50%" stopColor="#3b82f6" />
+            <stop offset="80%" stopColor="#22c55e" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#1e3a8a" />
+          </radialGradient>
+
+          {/* 火星: 赤褐色の大地 */}
+          <radialGradient id="marsGradient">
+            <stop offset="0%" stopColor="#dc2626" />
+            <stop offset="50%" stopColor="#CD5C5C" />
+            <stop offset="100%" stopColor="#7f1d1d" />
+          </radialGradient>
+
+          {/* 木星: 縞模様 */}
+          <linearGradient id="jupiterStripes" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#f59e0b" />
+            <stop offset="20%" stopColor="#C88B3A" />
+            <stop offset="40%" stopColor="#ea580c" />
+            <stop offset="60%" stopColor="#C88B3A" />
+            <stop offset="80%" stopColor="#d97706" />
+            <stop offset="100%" stopColor="#92400e" />
+          </linearGradient>
+
+          {/* 金星: 厚い黄色い雲 */}
+          <radialGradient id="venusGradient">
+            <stop offset="0%" stopColor="#fef3c7" />
+            <stop offset="50%" stopColor="#FFC649" />
+            <stop offset="100%" stopColor="#f59e0b" />
+          </radialGradient>
+
+          {/* 土星: 淡いオレンジ色 */}
+          <radialGradient id="saturnGradient">
+            <stop offset="0%" stopColor="#fde68a" />
+            <stop offset="50%" stopColor="#F4A460" />
+            <stop offset="100%" stopColor="#d97706" />
+          </radialGradient>
+
+          {/* エウロパ: 氷の表面 */}
+          <radialGradient id="europaGradient">
+            <stop offset="0%" stopColor="#e0f2fe" />
+            <stop offset="50%" stopColor="#B0C4DE" />
+            <stop offset="100%" stopColor="#7dd3fc" />
+          </radialGradient>
+
+          {/* イオ: 硫黄の黄色 */}
+          <radialGradient id="ioGradient">
+            <stop offset="0%" stopColor="#fef08a" />
+            <stop offset="50%" stopColor="#FFD700" />
+            <stop offset="100%" stopColor="#ca8a04" />
+          </radialGradient>
+
+          {/* タイタン: オレンジの大気 */}
+          <radialGradient id="titanGradient">
+            <stop offset="0%" stopColor="#fed7aa" />
+            <stop offset="50%" stopColor="#FFA500" />
+            <stop offset="100%" stopColor="#c2410c" />
+          </radialGradient>
+
+          {/* 月: グレーのクレーター */}
+          <radialGradient id="moonGradient">
+            <stop offset="0%" stopColor="#e5e7eb" />
+            <stop offset="50%" stopColor="#C0C0C0" />
+            <stop offset="100%" stopColor="#6b7280" />
+          </radialGradient>
+
+          {/* 水星: 灰茶色 */}
+          <radialGradient id="mercuryGradient">
+            <stop offset="0%" stopColor="#a8a29e" />
+            <stop offset="50%" stopColor="#8C7853" />
+            <stop offset="100%" stopColor="#57534e" />
+          </radialGradient>
         </defs>
 
         {/* 背景の星（パーティクル） */}
@@ -305,6 +424,7 @@ export default function SolarSystemMap({
           const pos = polarToCartesian(colony.orbitalRadius, colony.currentAngle);
           const size = getBodySize(colony);
           const color = getBodyColor(colony);
+          const gradient = getBodyGradient(colony);
           const isSelected = selectedId === colony.id;
           const isHovered = hoveredId === colony.id;
 
@@ -353,13 +473,13 @@ export default function SolarSystemMap({
                 </>
               )}
 
-              {/* コロニー本体（グロー効果付き） */}
+              {/* コロニー本体（グロー効果付き + グラデーション） */}
               <g filter="url(#glow)">
                 <circle
                   cx={pos.x}
                   cy={pos.y}
                   r={size + 2}
-                  fill={color}
+                  fill={gradient || color}
                   opacity={0.3}
                 >
                   <animate
@@ -373,7 +493,7 @@ export default function SolarSystemMap({
                   cx={pos.x}
                   cy={pos.y}
                   r={size}
-                  fill={color}
+                  fill={gradient || color}
                 >
                   {isHovered && (
                     <animate
