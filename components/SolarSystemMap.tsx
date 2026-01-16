@@ -1,11 +1,13 @@
 'use client';
 
-import React from 'react';
-import { Colony, Depot, CelestialBody } from '@/lib/types';
+import React, { useState } from 'react';
+import { Colony, Depot, CelestialBody, Route } from '@/lib/types';
+import Tooltip from './Tooltip';
 
 interface SolarSystemMapProps {
   colonies: Colony[];
   depots: Depot[];
+  routes?: Route[];
   onSelectColony?: (colony: Colony) => void;
   onSelectDepot?: (depot: Depot) => void;
   onSelectLocation?: (body: CelestialBody) => void;
@@ -19,11 +21,14 @@ interface SolarSystemMapProps {
 export default function SolarSystemMap({
   colonies,
   depots,
+  routes = [],
   onSelectColony,
   onSelectDepot,
   onSelectLocation,
   selectedId,
 }: SolarSystemMapProps) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
   // SVGのサイズ
   const width = 800;
   const height = 800;
@@ -78,7 +83,15 @@ export default function SolarSystemMap({
   return (
     <div className="w-full h-full bg-slate-950 rounded-lg overflow-hidden relative">
       <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
-        {/* 太陽 */}
+        {/* 太陽 - グロー効果付き */}
+        <defs>
+          <radialGradient id="sunGlow">
+            <stop offset="0%" stopColor="#fbbf24" stopOpacity="1" />
+            <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx={centerX} cy={centerY} r={30} fill="url(#sunGlow)" className="animate-pulse-slow" />
         <circle cx={centerX} cy={centerY} r={12} fill="#fbbf24" />
         <circle cx={centerX} cy={centerY} r={16} fill="#fbbf24" opacity={0.3} />
 
@@ -96,7 +109,47 @@ export default function SolarSystemMap({
           />
         ))}
 
-        {/* デポとコロニー間の接続線 */}
+        {/* アクティブな輸送ルートの描画 */}
+        {routes.filter(r => r.status === 'in_transit').map(route => {
+          const from = depots.find(d => d.id === route.from);
+          const to = colonies.find(c => c.id === route.to);
+          if (!from || !to) return null;
+
+          const fromPos = polarToCartesian(from.orbitalRadius, from.currentAngle);
+          const toPos = polarToCartesian(to.orbitalRadius, to.currentAngle);
+
+          return (
+            <g key={route.id}>
+              <line
+                x1={fromPos.x}
+                y1={fromPos.y}
+                x2={toPos.x}
+                y2={toPos.y}
+                stroke="#3b82f6"
+                strokeWidth={2}
+                opacity={0.6}
+                strokeDasharray="5 5"
+                className="animate-pulse"
+              />
+              {/* 輸送船のアニメーション */}
+              <circle
+                cx={fromPos.x + (toPos.x - fromPos.x) * 0.5}
+                cy={fromPos.y + (toPos.y - fromPos.y) * 0.5}
+                r={3}
+                fill="#60a5fa"
+                className="animate-pulse"
+              >
+                <animateMotion
+                  dur="3s"
+                  repeatCount="indefinite"
+                  path={`M ${fromPos.x} ${fromPos.y} L ${toPos.x} ${toPos.y}`}
+                />
+              </circle>
+            </g>
+          );
+        })}
+
+        {/* デポとコロニー間の接続線（静的） */}
         {depots.map(depot => {
           return colonies.map(colony => {
             const depotPos = polarToCartesian(depot.orbitalRadius, depot.currentAngle);
@@ -111,6 +164,8 @@ export default function SolarSystemMap({
 
             if (distance > 3) return null;
 
+            const isHighlighted = hoveredId === depot.id || hoveredId === colony.id;
+
             return (
               <line
                 key={`connection-${depot.id}-${colony.id}`}
@@ -118,10 +173,11 @@ export default function SolarSystemMap({
                 y1={depotPos.y}
                 x2={colonyPos.x}
                 y2={colonyPos.y}
-                stroke="#10b981"
-                strokeWidth={1}
-                opacity={0.2}
+                stroke={isHighlighted ? "#10b981" : "#334155"}
+                strokeWidth={isHighlighted ? 2 : 1}
+                opacity={isHighlighted ? 0.6 : 0.2}
                 strokeDasharray="4 4"
+                className="transition-all duration-300"
               />
             );
           });
@@ -134,23 +190,45 @@ export default function SolarSystemMap({
           const color = getBodyColor(colony);
           const isSelected = selectedId === colony.id;
 
+          const isHovered = hoveredId === colony.id;
+
           return (
             <g
               key={colony.id}
               onClick={() => onSelectColony?.(colony)}
-              className="cursor-pointer transition-transform hover:scale-110"
+              onMouseEnter={() => setHoveredId(colony.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              className="cursor-pointer transition-all duration-300"
+              style={{ transform: isHovered ? 'scale(1.2)' : 'scale(1)', transformOrigin: `${pos.x}px ${pos.y}px` }}
             >
-              {isSelected && (
+              {(isSelected || isHovered) && (
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={size + 4}
+                  r={size + 6}
                   fill="none"
-                  stroke="#60a5fa"
+                  stroke={isSelected ? "#60a5fa" : "#3b82f6"}
                   strokeWidth={2}
+                  className={isHovered ? "animate-pulse" : ""}
                 />
               )}
-              <circle cx={pos.x} cy={pos.y} r={size} fill={color} />
+              <circle
+                cx={pos.x}
+                cy={pos.y}
+                r={size}
+                fill={color}
+                className={isHovered ? "animate-glow" : ""}
+              />
+              {/* 満足度インジケーター */}
+              {colony.satisfaction < 50 && (
+                <circle
+                  cx={pos.x + size - 2}
+                  cy={pos.y - size + 2}
+                  r={3}
+                  fill="#ef4444"
+                  className="animate-pulse"
+                />
+              )}
               <text
                 x={pos.x}
                 y={pos.y - size - 4}
@@ -181,21 +259,26 @@ export default function SolarSystemMap({
           const size = getBodySize(depot);
           const color = getBodyColor(depot);
           const isSelected = selectedId === depot.id;
+          const isHovered = hoveredId === depot.id;
 
           return (
             <g
               key={depot.id}
               onClick={() => onSelectDepot?.(depot)}
-              className="cursor-pointer transition-transform hover:scale-110"
+              onMouseEnter={() => setHoveredId(depot.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              className="cursor-pointer transition-all duration-300"
+              style={{ transform: isHovered ? 'scale(1.2)' : 'scale(1)', transformOrigin: `${pos.x}px ${pos.y}px` }}
             >
-              {isSelected && (
+              {(isSelected || isHovered) && (
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={size + 4}
+                  r={size + 6}
                   fill="none"
-                  stroke="#34d399"
+                  stroke={isSelected ? "#34d399" : "#10b981"}
                   strokeWidth={2}
+                  className={isHovered ? "animate-pulse" : ""}
                 />
               )}
               <rect
@@ -204,6 +287,7 @@ export default function SolarSystemMap({
                 width={size}
                 height={size}
                 fill={color}
+                className={isHovered ? "animate-glow" : ""}
               />
               <text
                 x={pos.x}

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import SolarSystemMap from '@/components/SolarSystemMap';
+import Toast, { ToastProps } from '@/components/Toast';
+import Tooltip from '@/components/Tooltip';
 import { GameState, Colony, Depot, DepotType } from '@/lib/types';
 import { initializeGame, advanceTurn, buildDepot, autoSupply } from '@/lib/gameLogic';
 import { buildableSites, depotSpecs } from '@/lib/solarSystemData';
@@ -14,6 +16,8 @@ export default function Home() {
   const [showBuildMenu, setShowBuildMenu] = useState(false);
   const [selectedBuildSite, setSelectedBuildSite] = useState<string | null>(null);
   const [selectedDepotType, setSelectedDepotType] = useState<DepotType>('standard');
+  const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // ゲームを初期化
   useEffect(() => {
@@ -22,19 +26,31 @@ export default function Home() {
 
   if (!gameState) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
+        <div className="text-4xl animate-spin-slow">🌍</div>
+        <div className="text-white text-xl animate-pulse">太陽系を初期化中...</div>
+        <div className="w-64 h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" style={{ width: '60%' }}></div>
+        </div>
       </div>
     );
   }
 
   // ターンを進める
   const handleNextTurn = () => {
-    const newState = advanceTurn(gameState);
-    const suppliedState = autoSupply(newState);
-    setGameState(suppliedState);
-    setSelectedColony(null);
-    setSelectedDepot(null);
+    setIsProcessing(true);
+    setTimeout(() => {
+      const newState = advanceTurn(gameState);
+      const suppliedState = autoSupply(newState);
+      setGameState(suppliedState);
+      setSelectedColony(null);
+      setSelectedDepot(null);
+      setIsProcessing(false);
+      setToast({
+        message: `ターン ${suppliedState.currentTurn} が完了しました`,
+        type: 'info',
+      });
+    }, 300);
   };
 
   // デポを建設
@@ -60,29 +76,35 @@ export default function Home() {
       setGameState(newState);
       setShowBuildMenu(false);
       setSelectedBuildSite(null);
+      setToast({
+        message: `${site.nameJa}に${spec.nameJa}を建設しました`,
+        type: 'success',
+      });
     } catch (error) {
-      alert(error instanceof Error ? error.message : '建設に失敗しました');
+      setToast({
+        message: error instanceof Error ? error.message : '建設に失敗しました',
+        type: 'error',
+      });
     }
   };
 
   // 最適配置の提案
   const handleOptimize = () => {
-    const result = generateRecommendedPlacement(
-      gameState.colonies,
-      buildableSites,
-      gameState.budget,
-      'standard'
-    );
-
-    alert(
-      `推奨されるデポ配置:\n` +
-      `建設地点: ${result.sites.map(s => s.nameJa).join(', ')}\n\n` +
-      `評価:\n` +
-      `総コスト: ${result.evaluation.totalCost.toLocaleString()} credits\n` +
-      `カバー率: ${result.evaluation.coverageRate}%\n` +
-      `平均距離: ${result.evaluation.avgDistance} AU\n` +
-      `最大距離: ${result.evaluation.maxDistance} AU`
-    );
+    setIsProcessing(true);
+    setTimeout(() => {
+      const result = generateRecommendedPlacement(
+        gameState.colonies,
+        buildableSites,
+        gameState.budget,
+        'standard'
+      );
+      setIsProcessing(false);
+      setToast({
+        message: `推奨: ${result.sites.map(s => s.nameJa).join(', ')} | カバー率: ${result.evaluation.coverageRate}%`,
+        type: 'info',
+        duration: 5000,
+      });
+    }, 500);
   };
 
   return (
@@ -117,14 +139,14 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* 左カラム: マップ */}
           <div className="lg:col-span-2 space-y-4">
             {/* スコアボード */}
-            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
-              <h2 className="text-lg font-bold mb-3">パフォーマンス指標</h2>
-              <div className="grid grid-cols-4 gap-4">
+            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-3 sm:p-4 animate-fade-in">
+              <h2 className="text-base sm:text-lg font-bold mb-2 sm:mb-3">パフォーマンス指標</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div>
                   <div className="text-xs text-slate-400 mb-1">配送達成率</div>
                   <div className="flex items-baseline gap-1">
@@ -181,11 +203,12 @@ export default function Home() {
             </div>
 
             {/* マップ */}
-            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
+            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4 animate-fade-in">
               <div className="aspect-square">
                 <SolarSystemMap
                   colonies={gameState.colonies}
                   depots={gameState.depots}
+                  routes={gameState.routes}
                   onSelectColony={setSelectedColony}
                   onSelectDepot={setSelectedDepot}
                   selectedId={selectedColony?.id || selectedDepot?.id}
@@ -266,27 +289,50 @@ export default function Home() {
             )}
 
             {/* アクション */}
-            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
+            <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4 animate-fade-in">
               <h2 className="text-lg font-bold mb-3">アクション</h2>
               <div className="space-y-2">
-                <button
-                  onClick={handleNextTurn}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                  次のターンへ
-                </button>
-                <button
-                  onClick={() => setShowBuildMenu(!showBuildMenu)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                  デポを建設
-                </button>
-                <button
-                  onClick={handleOptimize}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                  最適配置を提案
-                </button>
+                <Tooltip content="時間を進めて物資を自動配送します" position="left">
+                  <button
+                    onClick={handleNextTurn}
+                    disabled={isProcessing}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                  >
+                    {isProcessing ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="animate-spin">⏳</span>
+                        処理中...
+                      </span>
+                    ) : (
+                      '次のターンへ ▶'
+                    )}
+                  </button>
+                </Tooltip>
+                <Tooltip content="新しいデポを建設します" position="left">
+                  <button
+                    onClick={() => setShowBuildMenu(!showBuildMenu)}
+                    disabled={isProcessing}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                  >
+                    🏗️ デポを建設
+                  </button>
+                </Tooltip>
+                <Tooltip content="AIが最適なデポ配置を計算します" position="left">
+                  <button
+                    onClick={handleOptimize}
+                    disabled={isProcessing}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
+                  >
+                    {isProcessing ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="animate-spin">🔄</span>
+                        計算中...
+                      </span>
+                    ) : (
+                      '🤖 最適配置を提案'
+                    )}
+                  </button>
+                </Tooltip>
               </div>
             </div>
 
@@ -369,6 +415,16 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* トースト通知 */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={() => setToast(null)}
+        />
+      )}
     </main>
   );
 }
