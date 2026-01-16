@@ -99,6 +99,25 @@ export interface Route {
 }
 
 /**
+ * 難易度設定
+ */
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+/**
+ * 難易度パラメータ
+ */
+export interface DifficultySettings {
+  name: string;
+  nameJa: string;
+  description: string;
+  initialBudget: number;
+  demandMultiplier: number; // 需要倍率
+  incomeMultiplier: number; // 収入倍率
+  maintenanceMultiplier: number; // 維持費倍率
+  satisfactionDecayMultiplier: number; // 満足度低下倍率
+}
+
+/**
  * ゲーム状態
  */
 export interface GameState {
@@ -140,6 +159,12 @@ export interface GameState {
     customerSatisfaction: number;
     coloniesServed: number;
   }[];
+  // 難易度
+  difficulty: Difficulty;
+  // 開始日時
+  startedAt: number;
+  // 最終更新日時
+  lastSavedAt: number;
 }
 
 /**

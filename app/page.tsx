@@ -6,11 +6,14 @@ import Toast, { ToastProps } from '@/components/Toast';
 import Tooltip from '@/components/Tooltip';
 import Tutorial from '@/components/Tutorial';
 import GameResult from '@/components/GameResult';
-import { GameState, Colony, Depot, DepotType } from '@/lib/types';
+import DifficultySelector from '@/components/DifficultySelector';
+import SaveLoadMenu from '@/components/SaveLoadMenu';
+import { GameState, Colony, Depot, DepotType, Difficulty } from '@/lib/types';
 import { initializeGame, advanceTurn, buildDepot, autoSupply } from '@/lib/gameLogic';
 import { buildableSites, depotSpecs } from '@/lib/solarSystemData';
 import { generateRecommendedPlacement } from '@/lib/optimizer';
 import { tutorialSteps } from '@/lib/tutorialSteps';
+import { saveGame, loadGame, getAutoSave } from '@/lib/saveLoad';
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -22,15 +25,28 @@ export default function Home() {
   const [toast, setToast] = useState<Omit<ToastProps, 'onClose'> | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showDifficultySelector, setShowDifficultySelector] = useState(false);
+  const [showSaveLoadMenu, setShowSaveLoadMenu] = useState(false);
 
   // ゲームを初期化
   useEffect(() => {
-    setGameState(initializeGame());
+    // オートセーブをチェック
+    const autoSave = getAutoSave();
+    if (autoSave) {
+      setGameState(autoSave.gameState);
+      setToast({
+        message: 'オートセーブデータを読み込みました',
+        type: 'info',
+      });
+    } else {
+      // 新規ゲーム開始時は難易度選択を表示
+      setShowDifficultySelector(true);
+    }
 
     // チュートリアル完了状態をチェック
     const tutorialCompleted = localStorage.getItem('tutorial_completed');
-    if (!tutorialCompleted) {
-      setShowTutorial(true);
+    if (!tutorialCompleted && !autoSave) {
+      // 難易度選択後にチュートリアルを表示するため、ここでは設定しない
     }
   }, []);
 
@@ -56,6 +72,13 @@ export default function Home() {
       setSelectedColony(null);
       setSelectedDepot(null);
       setIsProcessing(false);
+
+      // オートセーブ
+      try {
+        saveGame(suppliedState);
+      } catch (error) {
+        console.error('Auto save failed:', error);
+      }
 
       // ゲームオーバーチェック
       if (suppliedState.isGameOver) {
@@ -165,14 +188,54 @@ export default function Home() {
 
   // ゲーム再開
   const handleRestart = () => {
-    setGameState(initializeGame());
+    setShowDifficultySelector(true);
+  };
+
+  // 難易度選択
+  const handleDifficultySelect = (difficulty: Difficulty) => {
+    const newGame = initializeGame(difficulty);
+    setGameState(newGame);
     setSelectedColony(null);
     setSelectedDepot(null);
     setShowBuildMenu(false);
+    setShowDifficultySelector(false);
+
+    // オートセーブ
+    saveGame(newGame);
+
+    // チュートリアル完了状態をチェック
+    const tutorialCompleted = localStorage.getItem('tutorial_completed');
+    if (!tutorialCompleted) {
+      setTimeout(() => setShowTutorial(true), 500);
+    }
+
     setToast({
       message: '新しいゲームを開始しました',
       type: 'info',
     });
+  };
+
+  // セーブ/ロードメニューを開く
+  const handleOpenSaveLoad = () => {
+    setShowSaveLoadMenu(true);
+  };
+
+  // セーブデータをロード
+  const handleLoadGame = (slotId: string) => {
+    const loadedState = loadGame(slotId);
+    if (loadedState) {
+      setGameState(loadedState);
+      setShowSaveLoadMenu(false);
+      setToast({
+        message: 'ゲームを読み込みました',
+        type: 'success',
+      });
+    } else {
+      setToast({
+        message: 'セーブデータの読み込みに失敗しました',
+        type: 'error',
+      });
+    }
   };
 
   return (
@@ -188,6 +251,14 @@ export default function Home() {
               <p className="text-sm text-slate-400">太陽系補給線マネジメント</p>
             </div>
             <div className="flex items-center gap-4 sm:gap-6 text-sm">
+              <Tooltip content="セーブ/ロード" position="bottom">
+                <button
+                  onClick={handleOpenSaveLoad}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all hover:scale-105"
+                >
+                  💾
+                </button>
+              </Tooltip>
               <Tooltip content="チュートリアルを表示" position="bottom">
                 <button
                   onClick={handleShowTutorial}
@@ -516,6 +587,22 @@ export default function Home() {
         <GameResult
           gameState={gameState}
           onRestart={handleRestart}
+        />
+      )}
+
+      {/* 難易度選択 */}
+      {showDifficultySelector && (
+        <DifficultySelector
+          onSelect={handleDifficultySelect}
+          onCancel={() => setShowDifficultySelector(false)}
+        />
+      )}
+
+      {/* セーブ/ロードメニュー */}
+      {showSaveLoadMenu && (
+        <SaveLoadMenu
+          onLoad={handleLoadGame}
+          onClose={() => setShowSaveLoadMenu(false)}
         />
       )}
     </main>

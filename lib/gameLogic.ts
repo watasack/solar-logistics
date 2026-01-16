@@ -1,19 +1,31 @@
-import { GameState, Colony, Depot, Route } from './types';
+import { GameState, Colony, Depot, Route, Difficulty } from './types';
 import { initialColonies } from './solarSystemData';
 import { calculateDistance } from './optimizer';
+import { getDifficultySettings } from './difficulty';
 
 /**
  * 新しいゲームを初期化
  */
-export function initializeGame(): GameState {
+export function initializeGame(difficulty: Difficulty = 'normal'): GameState {
+  const diffSettings = getDifficultySettings(difficulty);
+  const colonies = JSON.parse(JSON.stringify(initialColonies)) as Colony[];
+
+  // 難易度に応じて需要を調整
+  colonies.forEach(colony => {
+    colony.demand.life_support = Math.round(colony.demand.life_support * diffSettings.demandMultiplier);
+    colony.demand.fuel = Math.round(colony.demand.fuel * diffSettings.demandMultiplier);
+    colony.demand.materials = Math.round(colony.demand.materials * diffSettings.demandMultiplier);
+    colony.demand.equipment = Math.round(colony.demand.equipment * diffSettings.demandMultiplier);
+  });
+
   return {
     currentTurn: 0,
     year: 2150,
     month: 1,
-    budget: 10000,
+    budget: diffSettings.initialBudget,
     income: 0,
     expenses: 0,
-    colonies: JSON.parse(JSON.stringify(initialColonies)), // Deep copy
+    colonies,
     depots: [],
     routes: [],
     score: {
@@ -26,6 +38,9 @@ export function initializeGame(): GameState {
     isGameOver: false,
     gameOverReason: undefined,
     history: [],
+    difficulty,
+    startedAt: Date.now(),
+    lastSavedAt: Date.now(),
   };
 }
 
@@ -136,18 +151,20 @@ function processRoutes(state: GameState): void {
  * 収支を計算
  */
 function calculateFinances(state: GameState): void {
-  // 収入: コロニーからの支払い（満足度に応じて）
+  const diffSettings = getDifficultySettings(state.difficulty);
+
+  // 収入: コロニーからの支払い（満足度に応じて、難易度補正）
   let income = 0;
   for (const colony of state.colonies) {
     const baseIncome = colony.population / 100; // 人口100人あたり1cr
     const satisfactionMultiplier = colony.satisfaction / 100;
-    income += baseIncome * satisfactionMultiplier;
+    income += baseIncome * satisfactionMultiplier * diffSettings.incomeMultiplier;
   }
 
-  // 支出: デポの維持費
+  // 支出: デポの維持費（難易度補正）
   let expenses = 0;
   for (const depot of state.depots) {
-    expenses += depot.maintenanceCost;
+    expenses += depot.maintenanceCost * diffSettings.maintenanceMultiplier;
   }
 
   // 支出: 輸送コスト
@@ -166,6 +183,8 @@ function calculateFinances(state: GameState): void {
  * 満足度を更新
  */
 function updateSatisfaction(state: GameState): void {
+  const diffSettings = getDifficultySettings(state.difficulty);
+
   for (const colony of state.colonies) {
     // 各物資の充足率を計算
     const supplyRatio = {
@@ -182,9 +201,10 @@ function updateSatisfaction(state: GameState): void {
         supplyRatio.materials +
         supplyRatio.equipment) / 4;
 
-    // 満足度を更新（緩やかに変化）
+    // 満足度を更新（緩やかに変化、難易度補正で低下速度調整）
     const targetSatisfaction = Math.min(100, avgRatio * 100);
-    const change = (targetSatisfaction - colony.satisfaction) * 0.3;
+    const changeRate = 0.3 * diffSettings.satisfactionDecayMultiplier;
+    const change = (targetSatisfaction - colony.satisfaction) * changeRate;
     colony.satisfaction = Math.max(0, Math.min(100, colony.satisfaction + change));
   }
 }
