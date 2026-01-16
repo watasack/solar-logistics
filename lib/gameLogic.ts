@@ -23,6 +23,9 @@ export function initializeGame(): GameState {
       customerSatisfaction: 70,
       totalScore: 85,
     },
+    isGameOver: false,
+    gameOverReason: undefined,
+    history: [],
   };
 }
 
@@ -57,6 +60,12 @@ export function advanceTurn(state: GameState): GameState {
 
   // スコアを計算
   calculateScore(newState);
+
+  // 履歴に追加
+  addToHistory(newState);
+
+  // ゲーム終了条件をチェック
+  checkGameOver(newState);
 
   return newState;
 }
@@ -107,9 +116,6 @@ function processRoutes(state: GameState): void {
       if (route.duration <= 0) {
         // 配送完了
         route.status = 'delivered';
-        completedRoutes.push(route.id);
-
-        // コロニーの在庫に追加
         const colony = state.colonies.find(c => c.id === route.to);
         if (colony) {
           colony.inventory.life_support += route.cargo.life_support;
@@ -117,11 +123,12 @@ function processRoutes(state: GameState): void {
           colony.inventory.materials += route.cargo.materials;
           colony.inventory.equipment += route.cargo.equipment;
         }
+        completedRoutes.push(route.id);
       }
     }
   }
 
-  // 配送完了したルートを削除
+  // 完了したルートを削除
   state.routes = state.routes.filter(r => !completedRoutes.includes(r.id));
 }
 
@@ -129,57 +136,56 @@ function processRoutes(state: GameState): void {
  * 収支を計算
  */
 function calculateFinances(state: GameState): void {
+  // 収入: コロニーからの支払い（満足度に応じて）
+  let income = 0;
+  for (const colony of state.colonies) {
+    const baseIncome = colony.population / 100; // 人口100人あたり1cr
+    const satisfactionMultiplier = colony.satisfaction / 100;
+    income += baseIncome * satisfactionMultiplier;
+  }
+
   // 支出: デポの維持費
-  let maintenanceCost = 0;
+  let expenses = 0;
   for (const depot of state.depots) {
-    maintenanceCost += depot.maintenanceCost;
+    expenses += depot.maintenanceCost;
   }
 
   // 支出: 輸送コスト
-  let transportCost = 0;
   for (const route of state.routes) {
-    if (route.status === 'delivered') {
-      transportCost += route.cost;
+    if (route.status === 'in_transit') {
+      expenses += route.cost;
     }
   }
 
-  // 収入: コロニーからの支払い（満足度に応じて）
-  let revenue = 0;
-  for (const colony of state.colonies) {
-    const baseRevenue = colony.population * 0.01; // 人口ベースの基本収入
-    const satisfactionMultiplier = colony.satisfaction / 100;
-    revenue += baseRevenue * satisfactionMultiplier;
-  }
-
-  state.expenses = maintenanceCost + transportCost;
-  state.income = revenue;
+  state.income = Math.round(income);
+  state.expenses = Math.round(expenses);
   state.budget += state.income - state.expenses;
 }
 
 /**
- * コロニーの満足度を更新
+ * 満足度を更新
  */
 function updateSatisfaction(state: GameState): void {
   for (const colony of state.colonies) {
-    // 在庫充足率を計算
-    const lifeSupportRatio = colony.inventory.life_support / (colony.demand.life_support * 2);
-    const fuelRatio = colony.inventory.fuel / (colony.demand.fuel * 2);
-    const materialsRatio = colony.inventory.materials / (colony.demand.materials * 2);
-    const equipmentRatio = colony.inventory.equipment / (colony.demand.equipment * 2);
+    // 各物資の充足率を計算
+    const supplyRatio = {
+      life_support: colony.inventory.life_support / (colony.demand.life_support * 2),
+      fuel: colony.inventory.fuel / (colony.demand.fuel * 2),
+      materials: colony.inventory.materials / (colony.demand.materials * 2),
+      equipment: colony.inventory.equipment / (colony.demand.equipment * 2),
+    };
 
     // 平均充足率
-    const avgRatio = (lifeSupportRatio + fuelRatio + materialsRatio + equipmentRatio) / 4;
+    const avgRatio =
+      (supplyRatio.life_support +
+        supplyRatio.fuel +
+        supplyRatio.materials +
+        supplyRatio.equipment) / 4;
 
-    // 満足度を調整
-    if (avgRatio < 0.3) {
-      colony.satisfaction = Math.max(0, colony.satisfaction - 10);
-    } else if (avgRatio < 0.5) {
-      colony.satisfaction = Math.max(0, colony.satisfaction - 5);
-    } else if (avgRatio > 1.5) {
-      colony.satisfaction = Math.min(100, colony.satisfaction + 5);
-    } else if (avgRatio > 1.0) {
-      colony.satisfaction = Math.min(100, colony.satisfaction + 2);
-    }
+    // 満足度を更新（緩やかに変化）
+    const targetSatisfaction = Math.min(100, avgRatio * 100);
+    const change = (targetSatisfaction - colony.satisfaction) * 0.3;
+    colony.satisfaction = Math.max(0, Math.min(100, colony.satisfaction + change));
   }
 }
 
@@ -240,11 +246,15 @@ export function buildDepot(state: GameState, depot: Depot): GameState {
     throw new Error('予算不足です');
   }
 
-  // 予算を消費
-  newState.budget -= depot.constructionCost;
+  // 同じ場所に既に建設されていないかチェック
+  const exists = newState.depots.some(d => d.id === depot.id);
+  if (exists) {
+    throw new Error('この場所には既にデポが建設されています');
+  }
 
   // デポを追加
   newState.depots.push(depot);
+  newState.budget -= depot.constructionCost;
 
   return newState;
 }
@@ -254,30 +264,30 @@ export function buildDepot(state: GameState, depot: Depot): GameState {
  */
 export function createRoute(
   state: GameState,
-  depotId: string,
-  colonyId: string,
-  cargo: Route['cargo']
+  fromId: string,
+  toId: string,
+  cargo: { life_support: number; fuel: number; materials: number; equipment: number }
 ): GameState {
   const newState = JSON.parse(JSON.stringify(state)) as GameState;
 
-  const depot = newState.depots.find(d => d.id === depotId);
-  const colony = newState.colonies.find(c => c.id === colonyId);
+  const depot = newState.depots.find(d => d.id === fromId);
+  const colony = newState.colonies.find(c => c.id === toId);
 
   if (!depot || !colony) {
     throw new Error('デポまたはコロニーが見つかりません');
   }
 
   // 距離とコストを計算
-  const calc = calculateDistance(depot, colony);
+  const distanceCalc = calculateDistance(depot, colony);
 
   // ルートを作成
   const route: Route = {
-    id: `route_${Date.now()}_${Math.random()}`,
-    from: depotId,
-    to: colonyId,
+    id: `route-${Date.now()}-${Math.random()}`,
+    from: fromId,
+    to: toId,
     cargo,
-    cost: calc.cost,
-    duration: Math.ceil(calc.travelTime),
+    cost: distanceCalc.cost,
+    duration: Math.ceil(distanceCalc.travelTime),
     status: 'in_transit',
   };
 
@@ -287,32 +297,38 @@ export function createRoute(
 }
 
 /**
- * 自動補給を実行（簡易AI）
- * 在庫が不足しているコロニーに自動で物資を送る
+ * 自動補給システム
+ * 各コロニーの在庫が少なくなったら、最寄りのデポから自動で補給
  */
 export function autoSupply(state: GameState): GameState {
   let newState = JSON.parse(JSON.stringify(state)) as GameState;
 
-  for (const colony of newState.colonies) {
-    // 在庫が需要の1ヶ月分以下の場合に補給
-    const needsSupply =
-      colony.inventory.life_support < colony.demand.life_support ||
-      colony.inventory.fuel < colony.demand.fuel ||
-      colony.inventory.materials < colony.demand.materials ||
-      colony.inventory.equipment < colony.demand.equipment;
+  if (newState.depots.length === 0) {
+    return newState;
+  }
 
-    if (needsSupply && newState.depots.length > 0) {
-      // 最寄りのデポを見つける
-      let nearestDepot = newState.depots[0];
+  for (const colony of newState.colonies) {
+    // 在庫が需要の1.5ヶ月分以下なら補給
+    const needsSupply =
+      colony.inventory.life_support < colony.demand.life_support * 1.5 ||
+      colony.inventory.fuel < colony.demand.fuel * 1.5 ||
+      colony.inventory.materials < colony.demand.materials * 1.5 ||
+      colony.inventory.equipment < colony.demand.equipment * 1.5;
+
+    if (needsSupply) {
+      // 最寄りのデポを探す
+      let nearestDepot: Depot | null = null;
       let minDistance = Infinity;
 
       for (const depot of newState.depots) {
-        const calc = calculateDistance(depot, colony);
-        if (calc.distance < minDistance) {
-          minDistance = calc.distance;
+        const dist = calculateDistance(depot, colony);
+        if (dist.distance < minDistance) {
+          minDistance = dist.distance;
           nearestDepot = depot;
         }
       }
+
+      if (!nearestDepot) continue;
 
       // 補給量を決定（需要の2ヶ月分）
       const cargo = {
@@ -333,4 +349,78 @@ export function autoSupply(state: GameState): GameState {
   }
 
   return newState;
+}
+
+/**
+ * 履歴に現在の状態を追加
+ */
+function addToHistory(state: GameState): void {
+  const coloniesServed = state.colonies.filter(c => {
+    const totalInventory = c.inventory.life_support + c.inventory.fuel + c.inventory.materials + c.inventory.equipment;
+    const totalDemand = c.demand.life_support + c.demand.fuel + c.demand.materials + c.demand.equipment;
+    return totalInventory >= totalDemand * 0.5; // 需要の50%以上在庫があればサービス中とみなす
+  }).length;
+
+  state.history.push({
+    turn: state.currentTurn,
+    budget: state.budget,
+    totalScore: state.score.totalScore,
+    deliveryRate: state.score.deliveryRate,
+    customerSatisfaction: state.score.customerSatisfaction,
+    coloniesServed,
+  });
+
+  // 履歴は最大120ターン分保持（10年分）
+  if (state.history.length > 120) {
+    state.history.shift();
+  }
+}
+
+/**
+ * ゲーム終了条件をチェック
+ */
+function checkGameOver(state: GameState): void {
+  const MAX_TURNS = 120; // 10年（120ヶ月）
+  const BANKRUPTCY_THRESHOLD = -5000; // 破産ライン
+  const VICTORY_SCORE = 95; // 勝利スコア
+  const VICTORY_TURNS = 60; // 5年以上続けば勝利判定
+
+  // 既にゲームオーバーならスキップ
+  if (state.isGameOver) {
+    return;
+  }
+
+  // 1. 破産チェック
+  if (state.budget < BANKRUPTCY_THRESHOLD) {
+    state.isGameOver = true;
+    state.gameOverReason = 'bankruptcy';
+    return;
+  }
+
+  // 2. 最大ターン到達
+  if (state.currentTurn >= MAX_TURNS) {
+    state.isGameOver = true;
+    state.gameOverReason = 'max_turns';
+    return;
+  }
+
+  // 3. 全コロニー満足度壊滅（全て20%以下）
+  const allColoniesLost = state.colonies.every(c => c.satisfaction < 20);
+  if (allColoniesLost && state.currentTurn > 12) { // 最初の1年は猶予
+    state.isGameOver = true;
+    state.gameOverReason = 'all_colonies_lost';
+    return;
+  }
+
+  // 4. 勝利条件（高スコアを維持）
+  if (
+    state.currentTurn >= VICTORY_TURNS &&
+    state.score.totalScore >= VICTORY_SCORE &&
+    state.score.customerSatisfaction >= 90 &&
+    state.budget > 5000
+  ) {
+    state.isGameOver = true;
+    state.gameOverReason = 'victory';
+    return;
+  }
 }

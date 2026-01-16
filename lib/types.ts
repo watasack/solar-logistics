@@ -127,6 +127,19 @@ export interface GameState {
     customerSatisfaction: number; // 顧客満足度（%）
     totalScore: number; // 総合スコア
   };
+  // ゲーム終了フラグ
+  isGameOver: boolean;
+  // ゲーム終了理由
+  gameOverReason?: 'bankruptcy' | 'max_turns' | 'all_colonies_lost' | 'victory';
+  // ターン毎の履歴
+  history: {
+    turn: number;
+    budget: number;
+    totalScore: number;
+    deliveryRate: number;
+    customerSatisfaction: number;
+    coloniesServed: number;
+  }[];
 }
 
 /**

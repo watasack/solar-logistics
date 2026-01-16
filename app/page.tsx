@@ -5,6 +5,7 @@ import SolarSystemMap from '@/components/SolarSystemMap';
 import Toast, { ToastProps } from '@/components/Toast';
 import Tooltip from '@/components/Tooltip';
 import Tutorial from '@/components/Tutorial';
+import GameResult from '@/components/GameResult';
 import { GameState, Colony, Depot, DepotType } from '@/lib/types';
 import { initializeGame, advanceTurn, buildDepot, autoSupply } from '@/lib/gameLogic';
 import { buildableSites, depotSpecs } from '@/lib/solarSystemData';
@@ -55,10 +56,35 @@ export default function Home() {
       setSelectedColony(null);
       setSelectedDepot(null);
       setIsProcessing(false);
-      setToast({
-        message: `ターン ${suppliedState.currentTurn} が完了しました`,
-        type: 'info',
-      });
+
+      // ゲームオーバーチェック
+      if (suppliedState.isGameOver) {
+        let message = '';
+        switch (suppliedState.gameOverReason) {
+          case 'victory':
+            message = '🎉 おめでとうございます！勝利条件を達成しました！';
+            break;
+          case 'bankruptcy':
+            message = '💸 予算が枯渇しました。ゲームオーバーです。';
+            break;
+          case 'all_colonies_lost':
+            message = '😢 全コロニーの満足度が壊滅的です。ゲームオーバーです。';
+            break;
+          case 'max_turns':
+            message = '⏰ 10年間の運営が終了しました！';
+            break;
+        }
+        setToast({
+          message,
+          type: suppliedState.gameOverReason === 'victory' ? 'success' : 'error',
+          duration: 5000,
+        });
+      } else {
+        setToast({
+          message: `ターン ${suppliedState.currentTurn} が完了しました`,
+          type: 'info',
+        });
+      }
     }, 300);
   };
 
@@ -135,6 +161,18 @@ export default function Home() {
   // チュートリアルを再表示
   const handleShowTutorial = () => {
     setShowTutorial(true);
+  };
+
+  // ゲーム再開
+  const handleRestart = () => {
+    setGameState(initializeGame());
+    setSelectedColony(null);
+    setSelectedDepot(null);
+    setShowBuildMenu(false);
+    setToast({
+      message: '新しいゲームを開始しました',
+      type: 'info',
+    });
   };
 
   return (
@@ -470,6 +508,14 @@ export default function Home() {
           steps={tutorialSteps}
           onComplete={handleTutorialComplete}
           onSkip={handleTutorialSkip}
+        />
+      )}
+
+      {/* ゲーム終了画面 */}
+      {gameState.isGameOver && (
+        <GameResult
+          gameState={gameState}
+          onRestart={handleRestart}
         />
       )}
     </main>
