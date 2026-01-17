@@ -22,6 +22,7 @@ export function initializeGame(difficulty: Difficulty = 'normal'): GameState {
     currentTurn: 0,
     year: 2150,
     month: 1,
+    epoch: 0, // 2150年1月1日からの日数
     budget: diffSettings.initialBudget,
     income: 0,
     expenses: 0,
@@ -57,6 +58,9 @@ export function advanceTurn(state: GameState): GameState {
     newState.month = 1;
     newState.year++;
   }
+
+  // epoch（日数）を更新（1ターン = 30日）
+  newState.epoch += 30;
 
   // 惑星の位置を更新（公転）
   updateOrbitalPositions(newState);

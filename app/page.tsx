@@ -314,9 +314,16 @@ export default function Home() {
               </Tooltip>
               <div className="hidden sm:block h-8 w-px bg-slate-700"></div>
               <div className="hidden md:flex items-center gap-3">
-                <div className="glass-effect px-3 py-2 rounded-lg">
-                  <span className="text-slate-400 text-xs">年月:</span>{' '}
-                  <span className="font-mono text-gradient-blue font-bold">{gameState.year}年 {gameState.month}月</span>
+                <div className="glass-effect px-4 py-2 rounded-lg border border-blue-500/30">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-blue-400">🌍</span>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-slate-400">ゲーム内日時</span>
+                      <span className="font-mono text-gradient-blue font-bold text-sm">
+                        {gameState.year}年 {gameState.month}月{Math.floor((gameState.epoch % 30) + 1)}日
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div className="glass-effect px-3 py-2 rounded-lg">
                   <span className="text-slate-400 text-xs">ターン:</span>{' '}

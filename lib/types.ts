@@ -9,11 +9,15 @@ export interface CelestialBody {
   nameJa: string;
   type: 'planet' | 'moon' | 'asteroid' | 'station';
   // 軌道情報（太陽からの距離、AU単位）
-  orbitalRadius: number; // 天文単位(AU)
+  orbitalRadius: number; // 天文単位(AU) - 円軌道の場合は半径、楕円軌道の場合は半長軸
   // 現在の軌道位置（0-360度）
   currentAngle: number;
   // 公転周期（地球日）
   orbitalPeriod: number;
+  // 楕円軌道パラメータ
+  eccentricity?: number; // 離心率（0-1、0=完全な円）
+  longitudeOfPerihelion?: number; // 近日点黄経（度）
+  inclination?: number; // 軌道傾斜角（度）
 }
 
 /**
@@ -126,6 +130,8 @@ export interface GameState {
   // 年月表示用
   year: number;
   month: number;
+  // ゲーム内日付（epoch - 2150年1月1日からの日数）
+  epoch: number;
   // 予算
   budget: number;
   // 収入（今月）

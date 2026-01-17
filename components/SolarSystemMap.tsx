@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Colony, Depot, CelestialBody, Route } from '@/lib/types';
 import Tooltip from './Tooltip';
+import { calculateEllipticalPosition, generateEllipsePathData } from '@/lib/orbitalMechanics';
 
 interface SolarSystemMapProps {
   colonies: Colony[];
@@ -46,22 +47,66 @@ export default function SolarSystemMap({
   const centerY = height / 2;
   const scale = 60; // 1AU = 60px
 
-  // パーティクル（星）を初期化
+  // パーティクル（星）を初期化 - 銀河面を意識した密度分布
   useEffect(() => {
     const newParticles: Particle[] = [];
-    for (let i = 0; i < 100; i++) {
+    const numStars = 200; // 星の総数を増やす
+
+    for (let i = 0; i < numStars; i++) {
+      // 銀河面（中心の水平線）からの距離に応じて密度を変える
+      // ガウス分布に従って y 座標を生成
+      const gaussianY = () => {
+        let y = 0;
+        for (let j = 0; j < 6; j++) {
+          y += Math.random();
+        }
+        return (y / 6 - 0.5) * height * 0.8 + height / 2;
+      };
+
+      const y = gaussianY(); // 中心付近に集中
+      const x = Math.random() * width;
+
+      // 銀河面からの距離で明るさを変える
+      const distanceFromGalacticPlane = Math.abs(y - height / 2) / (height / 2);
+      const baseOpacity = Math.max(0.2, 1 - distanceFromGalacticPlane * 0.8);
+
+      // 星のサイズも距離で変える（近い星は大きく）
+      const sizeVariation = 1 - distanceFromGalacticPlane * 0.5;
+
       newParticles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        size: Math.random() * 2 + 0.5,
-        opacity: Math.random() * 0.7 + 0.3,
+        x,
+        y,
+        size: (Math.random() * 1.5 + 0.3) * sizeVariation,
+        opacity: baseOpacity * (Math.random() * 0.5 + 0.5),
         twinkleSpeed: Math.random() * 0.02 + 0.01,
       });
     }
     setParticles(newParticles);
   }, []);
 
-  // 極座標から直交座標に変換
+  // 楕円軌道を考慮した位置計算
+  const getBodyPosition = (body: CelestialBody) => {
+    if (body.eccentricity && body.eccentricity > 0) {
+      // 楕円軌道の場合
+      const pos = calculateEllipticalPosition(body, body.currentAngle);
+      const radians = (pos.angle * Math.PI) / 180;
+      return {
+        x: centerX + pos.radius * scale * Math.cos(radians),
+        y: centerY + pos.radius * scale * Math.sin(radians),
+        zOffset: pos.zOffset, // 2.5D表現用
+      };
+    } else {
+      // 円軌道の場合（後方互換性）
+      const radians = (body.currentAngle * Math.PI) / 180;
+      return {
+        x: centerX + body.orbitalRadius * scale * Math.cos(radians),
+        y: centerY + body.orbitalRadius * scale * Math.sin(radians),
+        zOffset: 0,
+      };
+    }
+  };
+
+  // 極座標から直交座標に変換（ルート描画用・後方互換）
   const polarToCartesian = (radius: number, angle: number) => {
     const radians = (angle * Math.PI) / 180;
     return {
@@ -289,19 +334,35 @@ export default function SolarSystemMap({
           </circle>
         </g>
 
-        {/* 軌道の描画 */}
-        {[0.39, 0.72, 1.0, 1.52, 2.77, 5.2, 9.54].map((radius, i) => (
-          <circle
-            key={`orbit-${i}`}
-            cx={centerX}
-            cy={centerY}
-            r={radius * scale}
-            fill="none"
-            stroke="#334155"
-            strokeWidth={1}
-            opacity={0.3}
-          />
-        ))}
+        {/* 軌道の描画（楕円） */}
+        {[
+          { a: 0.39, e: 0.206, omega: 77 }, // 水星
+          { a: 0.72, e: 0.007, omega: 131 }, // 金星
+          { a: 1.0, e: 0.017, omega: 102 }, // 地球
+          { a: 1.52, e: 0.093, omega: 336 }, // 火星
+          { a: 2.77, e: 0.076, omega: 73 }, // ケレス（小惑星帯代表）
+          { a: 5.2, e: 0.048, omega: 14 }, // 木星
+          { a: 9.54, e: 0.054, omega: 93 }, // 土星
+        ].map((orbit, i) => {
+          const pathData = generateEllipsePathData(
+            centerX,
+            centerY,
+            orbit.a,
+            orbit.e,
+            orbit.omega,
+            scale
+          );
+          return (
+            <path
+              key={`orbit-${i}`}
+              d={pathData}
+              fill="none"
+              stroke="#334155"
+              strokeWidth={1}
+              opacity={0.3}
+            />
+          );
+        })}
 
         {/* アクティブな輸送ルートの描画 */}
         {routes.filter(r => r.status === 'in_transit').map((route, idx) => {
@@ -421,12 +482,16 @@ export default function SolarSystemMap({
 
         {/* コロニーの描画 */}
         {colonies.map(colony => {
-          const pos = polarToCartesian(colony.orbitalRadius, colony.currentAngle);
+          const pos = getBodyPosition(colony);
           const size = getBodySize(colony);
           const color = getBodyColor(colony);
           const gradient = getBodyGradient(colony);
           const isSelected = selectedId === colony.id;
           const isHovered = hoveredId === colony.id;
+
+          // 2.5D表現: Z方向のオフセットで視覚的な大きさを調整
+          const zScale = 1 + pos.zOffset * 0.05; // 手前/奥で少し大きさを変える
+          const visualSize = size * zScale;
 
           return (
             <g
@@ -551,11 +616,15 @@ export default function SolarSystemMap({
 
         {/* デポの描画 */}
         {depots.map(depot => {
-          const pos = polarToCartesian(depot.orbitalRadius, depot.currentAngle);
+          const pos = getBodyPosition(depot);
           const size = getBodySize(depot);
           const color = getBodyColor(depot);
           const isSelected = selectedId === depot.id;
           const isHovered = hoveredId === depot.id;
+
+          // 2.5D表現
+          const zScale = 1 + pos.zOffset * 0.05;
+          const visualSize = size * zScale;
 
           return (
             <g

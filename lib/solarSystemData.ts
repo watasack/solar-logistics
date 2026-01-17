@@ -11,9 +11,12 @@ export const celestialBodies = {
     name: 'Mercury',
     nameJa: '水星',
     type: 'planet' as const,
-    orbitalRadius: 0.39,
+    orbitalRadius: 0.39, // 半長軸
     currentAngle: 0,
     orbitalPeriod: 88,
+    eccentricity: 0.206, // 実際の離心率
+    longitudeOfPerihelion: 77,
+    inclination: 7.0,
   },
   venus: {
     id: 'venus',
@@ -23,6 +26,9 @@ export const celestialBodies = {
     orbitalRadius: 0.72,
     currentAngle: 45,
     orbitalPeriod: 225,
+    eccentricity: 0.007,
+    longitudeOfPerihelion: 131,
+    inclination: 3.4,
   },
   earth: {
     id: 'earth',
@@ -32,6 +38,9 @@ export const celestialBodies = {
     orbitalRadius: 1.0,
     currentAngle: 90,
     orbitalPeriod: 365,
+    eccentricity: 0.017,
+    longitudeOfPerihelion: 102,
+    inclination: 0.0, // 基準面
   },
   moon: {
     id: 'moon',
@@ -41,6 +50,9 @@ export const celestialBodies = {
     orbitalRadius: 1.0, // 地球と同じ軌道上
     currentAngle: 90,
     orbitalPeriod: 365,
+    eccentricity: 0.017, // 地球と同じ
+    longitudeOfPerihelion: 102,
+    inclination: 0.0,
   },
   mars: {
     id: 'mars',
@@ -50,6 +62,9 @@ export const celestialBodies = {
     orbitalRadius: 1.52,
     currentAngle: 135,
     orbitalPeriod: 687,
+    eccentricity: 0.093, // 顕著な楕円軌道
+    longitudeOfPerihelion: 336,
+    inclination: 1.9,
   },
   phobos: {
     id: 'phobos',
@@ -59,6 +74,9 @@ export const celestialBodies = {
     orbitalRadius: 1.52,
     currentAngle: 135,
     orbitalPeriod: 687,
+    eccentricity: 0.093,
+    longitudeOfPerihelion: 336,
+    inclination: 1.9,
   },
 
   // 小惑星帯
@@ -70,6 +88,9 @@ export const celestialBodies = {
     orbitalRadius: 2.77,
     currentAngle: 180,
     orbitalPeriod: 1680,
+    eccentricity: 0.076,
+    longitudeOfPerihelion: 73,
+    inclination: 10.6, // 大きく傾いた軌道
   },
   vesta: {
     id: 'vesta',
@@ -79,6 +100,9 @@ export const celestialBodies = {
     orbitalRadius: 2.36,
     currentAngle: 170,
     orbitalPeriod: 1325,
+    eccentricity: 0.089,
+    longitudeOfPerihelion: 151,
+    inclination: 7.1,
   },
 
   // 木星系
@@ -90,6 +114,9 @@ export const celestialBodies = {
     orbitalRadius: 5.2,
     currentAngle: 225,
     orbitalPeriod: 4333,
+    eccentricity: 0.048,
+    longitudeOfPerihelion: 14,
+    inclination: 1.3,
   },
   io: {
     id: 'io',
@@ -99,6 +126,9 @@ export const celestialBodies = {
     orbitalRadius: 5.2,
     currentAngle: 225,
     orbitalPeriod: 4333,
+    eccentricity: 0.048,
+    longitudeOfPerihelion: 14,
+    inclination: 1.3,
   },
   europa: {
     id: 'europa',
@@ -108,6 +138,9 @@ export const celestialBodies = {
     orbitalRadius: 5.2,
     currentAngle: 225,
     orbitalPeriod: 4333,
+    eccentricity: 0.048,
+    longitudeOfPerihelion: 14,
+    inclination: 1.3,
   },
   ganymede: {
     id: 'ganymede',
@@ -117,6 +150,9 @@ export const celestialBodies = {
     orbitalRadius: 5.2,
     currentAngle: 225,
     orbitalPeriod: 4333,
+    eccentricity: 0.048,
+    longitudeOfPerihelion: 14,
+    inclination: 1.3,
   },
 
   // 土星系
@@ -128,6 +164,9 @@ export const celestialBodies = {
     orbitalRadius: 9.54,
     currentAngle: 270,
     orbitalPeriod: 10759,
+    eccentricity: 0.054,
+    longitudeOfPerihelion: 93,
+    inclination: 2.5,
   },
   titan: {
     id: 'titan',
@@ -137,6 +176,9 @@ export const celestialBodies = {
     orbitalRadius: 9.54,
     currentAngle: 270,
     orbitalPeriod: 10759,
+    eccentricity: 0.054,
+    longitudeOfPerihelion: 93,
+    inclination: 2.5,
   },
   enceladus: {
     id: 'enceladus',
@@ -146,6 +188,9 @@ export const celestialBodies = {
     orbitalRadius: 9.54,
     currentAngle: 270,
     orbitalPeriod: 10759,
+    eccentricity: 0.054,
+    longitudeOfPerihelion: 93,
+    inclination: 2.5,
   },
 };
 
