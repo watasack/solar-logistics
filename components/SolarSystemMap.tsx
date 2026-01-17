@@ -489,7 +489,7 @@ export default function SolarSystemMap({
         </defs>
 
         {/* ズーム・パン用のグループ */}
-        <g transform={`translate(${centerX}, ${centerY}) scale(${zoomLevel}) translate(${-centerX + panX}, ${-centerY + panY})`}>
+        <g transform={`translate(${centerX + panX}, ${centerY + panY}) scale(${zoomLevel}) translate(${-centerX}, ${-centerY})`}>
 
         {/* 背景の星（レイヤー分離） */}
 
