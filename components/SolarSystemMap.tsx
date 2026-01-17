@@ -605,8 +605,8 @@ export default function SolarSystemMap({
           const to = colonies.find(c => c.id === route.to);
           if (!from || !to) return null;
 
-          const fromPos = polarToCartesian(from.orbitalRadius, from.currentAngle);
-          const toPos = polarToCartesian(to.orbitalRadius, to.currentAngle);
+          const fromPos = getBodyPosition(from);
+          const toPos = getBodyPosition(to);
 
           // 曲線パスを計算（ベジェ曲線）
           const midX = (fromPos.x + toPos.x) / 2;
@@ -698,8 +698,8 @@ export default function SolarSystemMap({
           const maxCost = Math.max(...costsForDepot);
 
           return colonies.map((colony, index) => {
-            const depotPos = polarToCartesian(depot.orbitalRadius, depot.currentAngle);
-            const colonyPos = polarToCartesian(colony.orbitalRadius, colony.currentAngle);
+            const depotPos = getBodyPosition(depot);
+            const colonyPos = getBodyPosition(colony);
 
             const distance = calculateDistanceBetweenBodies(
               depot,
@@ -729,8 +729,7 @@ export default function SolarSystemMap({
                   opacity={isHighlighted ? 0.8 : 0.4}
                   strokeDasharray="4 4"
                   className="transition-all duration-300"
-                  style={{ transition: 'x1 1s ease-in-out, y1 1s ease-in-out, x2 1s ease-in-out, y2 1s ease-in-out' }}
-                />
+                                  />
                 {/* コスト表示ラベル（ホバー時） */}
                 {isHighlighted && (
                   <text
@@ -741,8 +740,7 @@ export default function SolarSystemMap({
                     fontSize="10"
                     fontWeight="600"
                     className="pointer-events-none"
-                    style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
-                  >
+                                      >
                     {cost}cr ({distance.toFixed(2)}AU)
                   </text>
                 )}
@@ -778,16 +776,15 @@ export default function SolarSystemMap({
                   <circle
                     cx={pos.x}
                     cy={pos.y}
-                    r={size + 8}
+                    r={visualSize + 8}
                     fill="none"
                     stroke={isSelected ? "#60a5fa" : "#3b82f6"}
                     strokeWidth={2}
                     opacity={0.6}
-                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   >
                     <animate
                       attributeName="r"
-                      values={`${size + 6};${size + 10};${size + 6}`}
+                      values={`${visualSize + 6};${visualSize + 10};${visualSize + 6}`}
                       dur="2s"
                       repeatCount="indefinite"
                     />
@@ -801,29 +798,27 @@ export default function SolarSystemMap({
                   <circle
                     cx={pos.x}
                     cy={pos.y}
-                    r={size + 4}
+                    r={visualSize + 4}
                     fill="none"
                     stroke={isSelected ? "#60a5fa" : "#3b82f6"}
                     strokeWidth={1}
                     opacity={0.8}
-                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   />
                 </>
               )}
 
               {/* コロニー本体（グロー効果付き + グラデーション + 自転アニメーション） */}
-              <g filter="url(#glow)" style={{ transition: 'transform 1s ease-in-out' }}>
+              <g filter="url(#glow)">
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={size + 2}
+                  r={visualSize + 2}
                   fill={gradient || color}
                   opacity={0.3}
-                  style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                 >
                   <animate
                     attributeName="r"
-                    values={`${size + 1};${size + 3};${size + 1}`}
+                    values={`${visualSize + 1};${visualSize + 3};${visualSize + 1}`}
                     dur="3s"
                     repeatCount="indefinite"
                   />
@@ -832,14 +827,13 @@ export default function SolarSystemMap({
                   <circle
                     cx={pos.x}
                     cy={pos.y}
-                    r={size}
+                    r={visualSize}
                     fill={gradient || color}
-                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   >
                     {isHovered && (
                       <animate
                         attributeName="r"
-                        values={`${size};${size * 1.2};${size}`}
+                        values={`${visualSize};${visualSize * 1.2};${visualSize}`}
                         dur="0.5s"
                         repeatCount="1"
                       />
@@ -861,10 +855,9 @@ export default function SolarSystemMap({
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={size}
+                  r={visualSize}
                   fill={`url(#phase-${colony.id})`}
                   pointerEvents="none"
-                  style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                 />
               </g>
 
@@ -873,14 +866,13 @@ export default function SolarSystemMap({
                 <ellipse
                   cx={pos.x}
                   cy={pos.y}
-                  rx={size * 2.2}
-                  ry={size * 0.4}
+                  rx={visualSize * 2.2}
+                  ry={visualSize * 0.4}
                   fill="url(#saturnRingGradient)"
                   stroke="#D4A574"
                   strokeWidth={0.5}
                   opacity={0.8}
                   pointerEvents="none"
-                  style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                 />
               )}
 
@@ -888,12 +880,11 @@ export default function SolarSystemMap({
               {colony.satisfaction < 50 && (
                 <g filter="url(#glow)">
                   <circle
-                    cx={pos.x + size}
-                    cy={pos.y - size}
+                    cx={pos.x + visualSize}
+                    cy={pos.y - visualSize}
                     r={3}
                     fill="#ef4444"
-                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
-                  >
+                                      >
                     <animate
                       attributeName="opacity"
                       values="1;0.3;1"
@@ -906,23 +897,21 @@ export default function SolarSystemMap({
 
               <text
                 x={pos.x}
-                y={pos.y - size - 6}
+                y={pos.y - visualSize - 6}
                 textAnchor="middle"
                 fill="#e2e8f0"
                 fontSize="10"
                 fontWeight="500"
-                style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
               >
                 {colony.nameJa}
               </text>
               {/* 人口表示 */}
               <text
                 x={pos.x}
-                y={pos.y + size + 14}
+                y={pos.y + visualSize + 14}
                 textAnchor="middle"
                 fill="#94a3b8"
                 fontSize="8"
-                style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
               >
                 {(colony.population / 1000).toFixed(0)}K
               </text>
@@ -956,16 +945,15 @@ export default function SolarSystemMap({
                   <circle
                     cx={pos.x}
                     cy={pos.y}
-                    r={size + 8}
+                    r={visualSize + 8}
                     fill="none"
                     stroke={isSelected ? "#34d399" : "#10b981"}
                     strokeWidth={2}
                     opacity={0.6}
-                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   >
                     <animate
                       attributeName="r"
-                      values={`${size + 6};${size + 10};${size + 6}`}
+                      values={`${visualSize + 6};${visualSize + 10};${visualSize + 6}`}
                       dur="2s"
                       repeatCount="indefinite"
                     />
@@ -979,12 +967,11 @@ export default function SolarSystemMap({
                   <circle
                     cx={pos.x}
                     cy={pos.y}
-                    r={size + 4}
+                    r={visualSize + 4}
                     fill="none"
                     stroke={isSelected ? "#34d399" : "#10b981"}
                     strokeWidth={1}
                     opacity={0.8}
-                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   />
                 </>
               )}
@@ -1000,8 +987,7 @@ export default function SolarSystemMap({
                   fill={color}
                   opacity={0.3}
                   rx={2}
-                  style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
-                >
+                                  >
                   <animate
                     attributeName="width"
                     values={`${size + 1};${size + 4};${size + 1}`}
@@ -1029,13 +1015,12 @@ export default function SolarSystemMap({
                 </rect>
                 {/* 本体 */}
                 <rect
-                  x={pos.x - size / 2}
-                  y={pos.y - size / 2}
-                  width={size}
-                  height={size}
+                  x={pos.x - visualSize / 2}
+                  y={pos.y - visualSize / 2}
+                  width={visualSize}
+                  height={visualSize}
                   fill={color}
                   rx={2}
-                  style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
                 >
                   <animateTransform
                     attributeName="transform"
@@ -1047,14 +1032,13 @@ export default function SolarSystemMap({
                 </rect>
                 {/* 位相表現（満ち欠け）レイヤー */}
                 <rect
-                  x={pos.x - size / 2}
-                  y={pos.y - size / 2}
-                  width={size}
-                  height={size}
+                  x={pos.x - visualSize / 2}
+                  y={pos.y - visualSize / 2}
+                  width={visualSize}
+                  height={visualSize}
                   fill={`url(#phase-${depot.id})`}
                   rx={2}
                   pointerEvents="none"
-                  style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
                 >
                   <animateTransform
                     attributeName="transform"
@@ -1068,12 +1052,11 @@ export default function SolarSystemMap({
 
               <text
                 x={pos.x}
-                y={pos.y - size - 6}
+                y={pos.y - visualSize - 6}
                 textAnchor="middle"
                 fill="#a7f3d0"
                 fontSize="10"
                 fontWeight="600"
-                style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
               >
                 {depot.nameJa}
               </text>
