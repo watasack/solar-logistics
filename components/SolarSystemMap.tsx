@@ -9,6 +9,8 @@ import {
   calculateDistanceBetweenBodies,
   calculateTransportCost,
   costToHeatmapColor,
+  calculateOrbitalVelocity,
+  calculatePhaseDifference,
 } from '@/lib/orbitalMechanics';
 
 interface SolarSystemMapProps {
@@ -332,6 +334,17 @@ export default function SolarSystemMap({
             <stop offset="50%" stopColor="#F4A460" />
             <stop offset="100%" stopColor="#d97706" />
           </radialGradient>
+
+          {/* 土星のリング */}
+          <linearGradient id="saturnRingGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#D4A574" stopOpacity="0" />
+            <stop offset="20%" stopColor="#F4A460" stopOpacity="0.6" />
+            <stop offset="40%" stopColor="#E6C8A0" stopOpacity="0.8" />
+            <stop offset="50%" stopColor="#D4A574" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#E6C8A0" stopOpacity="0.8" />
+            <stop offset="80%" stopColor="#F4A460" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#D4A574" stopOpacity="0" />
+          </linearGradient>
 
           {/* エウロパ: 氷の表面 */}
           <radialGradient id="europaGradient">
@@ -714,7 +727,7 @@ export default function SolarSystemMap({
                 </>
               )}
 
-              {/* コロニー本体（グロー効果付き + グラデーション） */}
+              {/* コロニー本体（グロー効果付き + グラデーション + 自転アニメーション） */}
               <g filter="url(#glow)">
                 <circle
                   cx={pos.x}
@@ -730,21 +743,34 @@ export default function SolarSystemMap({
                     repeatCount="indefinite"
                   />
                 </circle>
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={size}
-                  fill={gradient || color}
-                >
-                  {isHovered && (
-                    <animate
-                      attributeName="r"
-                      values={`${size};${size * 1.2};${size}`}
-                      dur="0.5s"
-                      repeatCount="1"
+                <g>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={size}
+                    fill={gradient || color}
+                  >
+                    {isHovered && (
+                      <animate
+                        attributeName="r"
+                        values={`${size};${size * 1.2};${size}`}
+                        dur="0.5s"
+                        repeatCount="1"
+                      />
+                    )}
+                  </circle>
+                  {/* 自転効果（グラデーションの回転） */}
+                  {gradient && (
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      from={`0 ${pos.x} ${pos.y}`}
+                      to={`360 ${pos.x} ${pos.y}`}
+                      dur="60s"
+                      repeatCount="indefinite"
                     />
                   )}
-                </circle>
+                </g>
                 {/* 位相表現（満ち欠け）レイヤー */}
                 <circle
                   cx={pos.x}
@@ -754,6 +780,21 @@ export default function SolarSystemMap({
                   pointerEvents="none"
                 />
               </g>
+
+              {/* 土星のリング（特別処理） */}
+              {colony.id === 'saturn' && (
+                <ellipse
+                  cx={pos.x}
+                  cy={pos.y}
+                  rx={size * 2.2}
+                  ry={size * 0.4}
+                  fill="url(#saturnRingGradient)"
+                  stroke="#D4A574"
+                  strokeWidth={0.5}
+                  opacity={0.8}
+                  pointerEvents="none"
+                />
+              )}
 
               {/* 満足度インジケーター */}
               {colony.satisfaction < 50 && (
@@ -959,6 +1000,48 @@ export default function SolarSystemMap({
             <div className="w-3 h-3 rounded-full bg-purple-500"></div>
             <span className="text-slate-200">惑星</span>
           </div>
+
+          {/* ホバー時の数値情報 */}
+          {hoveredId && (
+            <div className="border-t border-slate-600 mt-2 pt-2">
+              <div className="text-xs font-bold text-blue-400 mb-1">📐 軌道情報</div>
+              {(() => {
+                const hoveredBody = [...colonies, ...depots].find(b => b.id === hoveredId);
+                if (!hoveredBody) return null;
+
+                const velocity = calculateOrbitalVelocity(hoveredBody.orbitalRadius, hoveredBody.orbitalPeriod);
+                const sunDistance = hoveredBody.orbitalRadius;
+
+                // 地球との位相差を計算
+                const earth = colonies.find(c => c.id === 'earth');
+                const phaseDiff = earth ? calculatePhaseDifference(hoveredBody.currentAngle, earth.currentAngle) : 0;
+
+                return (
+                  <div className="space-y-1 text-xs font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">軌道半径:</span>
+                      <span className="text-white font-bold">{sunDistance.toFixed(2)} AU</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">軌道速度:</span>
+                      <span className="text-white font-bold">{velocity} km/s</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">公転周期:</span>
+                      <span className="text-white font-bold">{hoveredBody.orbitalPeriod} 日</span>
+                    </div>
+                    {earth && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">地球との位相差:</span>
+                        <span className="text-white font-bold">{phaseDiff}°</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           <div className="border-t border-slate-600 my-2 pt-2">
             <button
               onClick={() => setShowCostHeatmap(!showCostHeatmap)}

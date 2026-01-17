@@ -191,3 +191,36 @@ export function costToHeatmapColor(cost: number, minCost: number, maxCost: numbe
 
   return `rgb(${r}, ${g}, ${b})`;
 }
+
+/**
+ * 軌道速度を計算（簡易モデル）
+ * @param orbitalRadius 軌道半径（AU）
+ * @param orbitalPeriod 公転周期（日）
+ * @returns 軌道速度（km/s）
+ */
+export function calculateOrbitalVelocity(orbitalRadius: number, orbitalPeriod: number): number {
+  // 軌道周長 = 2πr
+  const AU_TO_KM = 149597870.7; // 1AU = 149,597,870.7 km
+  const circumference = 2 * Math.PI * orbitalRadius * AU_TO_KM;
+
+  // 速度 = 距離 / 時間
+  const secondsPerDay = 86400;
+  const velocityKmPerSec = circumference / (orbitalPeriod * secondsPerDay);
+
+  return Math.round(velocityKmPerSec * 10) / 10; // 小数第1位まで
+}
+
+/**
+ * 2つの天体間の位相差を計算
+ * @param angle1 天体1の角度（度）
+ * @param angle2 天体2の角度（度）
+ * @returns 位相差（度、0-180）
+ */
+export function calculatePhaseDifference(angle1: number, angle2: number): number {
+  let diff = Math.abs(angle1 - angle2) % 360;
+  // 0-180度の範囲に正規化
+  if (diff > 180) {
+    diff = 360 - diff;
+  }
+  return Math.round(diff * 10) / 10; // 小数第1位まで
+}
