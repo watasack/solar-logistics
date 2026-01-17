@@ -649,6 +649,7 @@ export default function SolarSystemMap({
                   opacity={isHighlighted ? 0.8 : 0.4}
                   strokeDasharray="4 4"
                   className="transition-all duration-300"
+                  style={{ transition: 'x1 1s ease-in-out, y1 1s ease-in-out, x2 1s ease-in-out, y2 1s ease-in-out' }}
                 />
                 {/* コスト表示ラベル（ホバー時） */}
                 {isHighlighted && (
@@ -660,6 +661,7 @@ export default function SolarSystemMap({
                     fontSize="10"
                     fontWeight="600"
                     className="pointer-events-none"
+                    style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
                   >
                     {cost}cr ({distance.toFixed(2)}AU)
                   </text>
@@ -701,6 +703,7 @@ export default function SolarSystemMap({
                     stroke={isSelected ? "#60a5fa" : "#3b82f6"}
                     strokeWidth={2}
                     opacity={0.6}
+                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   >
                     <animate
                       attributeName="r"
@@ -723,18 +726,20 @@ export default function SolarSystemMap({
                     stroke={isSelected ? "#60a5fa" : "#3b82f6"}
                     strokeWidth={1}
                     opacity={0.8}
+                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   />
                 </>
               )}
 
               {/* コロニー本体（グロー効果付き + グラデーション + 自転アニメーション） */}
-              <g filter="url(#glow)">
+              <g filter="url(#glow)" style={{ transition: 'transform 1s ease-in-out' }}>
                 <circle
                   cx={pos.x}
                   cy={pos.y}
                   r={size + 2}
                   fill={gradient || color}
                   opacity={0.3}
+                  style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                 >
                   <animate
                     attributeName="r"
@@ -749,6 +754,7 @@ export default function SolarSystemMap({
                     cy={pos.y}
                     r={size}
                     fill={gradient || color}
+                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   >
                     {isHovered && (
                       <animate
@@ -778,6 +784,7 @@ export default function SolarSystemMap({
                   r={size}
                   fill={`url(#phase-${colony.id})`}
                   pointerEvents="none"
+                  style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                 />
               </g>
 
@@ -793,6 +800,7 @@ export default function SolarSystemMap({
                   strokeWidth={0.5}
                   opacity={0.8}
                   pointerEvents="none"
+                  style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                 />
               )}
 
@@ -804,6 +812,7 @@ export default function SolarSystemMap({
                     cy={pos.y - size}
                     r={3}
                     fill="#ef4444"
+                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   >
                     <animate
                       attributeName="opacity"
@@ -822,6 +831,7 @@ export default function SolarSystemMap({
                 fill="#e2e8f0"
                 fontSize="10"
                 fontWeight="500"
+                style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
               >
                 {colony.nameJa}
               </text>
@@ -832,6 +842,7 @@ export default function SolarSystemMap({
                 textAnchor="middle"
                 fill="#94a3b8"
                 fontSize="8"
+                style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
               >
                 {(colony.population / 1000).toFixed(0)}K
               </text>
@@ -870,6 +881,7 @@ export default function SolarSystemMap({
                     stroke={isSelected ? "#34d399" : "#10b981"}
                     strokeWidth={2}
                     opacity={0.6}
+                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   >
                     <animate
                       attributeName="r"
@@ -892,6 +904,7 @@ export default function SolarSystemMap({
                     stroke={isSelected ? "#34d399" : "#10b981"}
                     strokeWidth={1}
                     opacity={0.8}
+                    style={{ transition: 'cx 1s ease-in-out, cy 1s ease-in-out' }}
                   />
                 </>
               )}
@@ -907,6 +920,7 @@ export default function SolarSystemMap({
                   fill={color}
                   opacity={0.3}
                   rx={2}
+                  style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
                 >
                   <animate
                     attributeName="width"
@@ -941,6 +955,7 @@ export default function SolarSystemMap({
                   height={size}
                   fill={color}
                   rx={2}
+                  style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
                 >
                   <animateTransform
                     attributeName="transform"
@@ -959,6 +974,7 @@ export default function SolarSystemMap({
                   fill={`url(#phase-${depot.id})`}
                   rx={2}
                   pointerEvents="none"
+                  style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
                 >
                   <animateTransform
                     attributeName="transform"
@@ -977,6 +993,7 @@ export default function SolarSystemMap({
                 fill="#a7f3d0"
                 fontSize="10"
                 fontWeight="600"
+                style={{ transition: 'x 1s ease-in-out, y 1s ease-in-out' }}
               >
                 {depot.nameJa}
               </text>
