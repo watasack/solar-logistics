@@ -50,13 +50,72 @@ export default function SolarSystemMap({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [showCostHeatmap, setShowCostHeatmap] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const svgRef = useRef<SVGSVGElement>(null);
 
   // SVGのサイズ
   const width = 800;
   const height = 800;
   const centerX = width / 2;
   const centerY = height / 2;
-  const scale = 60; // 1AU = 60px
+  const baseScale = 60; // 1AU = 60px
+  const scale = baseScale * zoomLevel;
+
+  // ズーム・パンのイベントハンドラ
+  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1; // ズームイン/アウトの倍率
+    const newZoom = Math.max(0.3, Math.min(5, zoomLevel * delta)); // 0.3倍〜5倍の範囲
+    setZoomLevel(newZoom);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    // 天体をクリックした場合はパン操作を開始しない
+    if ((e.target as SVGElement).tagName !== 'svg' &&
+        (e.target as SVGElement).closest('g')?.classList.contains('cursor-pointer')) {
+      return;
+    }
+
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - panX, y: e.clientY - panY });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isDragging) return;
+
+    const newPanX = e.clientX - dragStart.x;
+    const newPanY = e.clientY - dragStart.y;
+    setPanX(newPanX);
+    setPanY(newPanY);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  // ズーム・パンのリセット
+  const resetView = () => {
+    setZoomLevel(1);
+    setPanX(0);
+    setPanY(0);
+  };
+
+  // ズームイン/アウト関数
+  const zoomIn = () => {
+    setZoomLevel(prev => Math.min(5, prev * 1.3));
+  };
+
+  const zoomOut = () => {
+    setZoomLevel(prev => Math.max(0.3, prev / 1.3));
+  };
 
   // パーティクル（星）を初期化 - レイヤー分離と銀河面を意識した密度分布
   useEffect(() => {
@@ -264,7 +323,18 @@ export default function SolarSystemMap({
 
   return (
     <div className="w-full h-full bg-slate-950 rounded-lg overflow-hidden relative">
-      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
+      <svg
+        ref={svgRef}
+        width="100%"
+        height="100%"
+        viewBox={`${-panX / zoomLevel} ${-panY / zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      >
         <defs>
           {/* 太陽のグラデーション */}
           <radialGradient id="sunGlow">
@@ -1001,6 +1071,34 @@ export default function SolarSystemMap({
           );
         })}
       </svg>
+
+      {/* ズームコントロール */}
+      <div className="absolute top-4 left-4 bg-slate-800/80 backdrop-blur-sm p-2 rounded-lg text-sm space-y-1">
+        <button
+          onClick={zoomIn}
+          className="w-full px-3 py-2 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded transition-all font-bold text-lg"
+          title="ズームイン"
+        >
+          +
+        </button>
+        <button
+          onClick={zoomOut}
+          className="w-full px-3 py-2 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded transition-all font-bold text-lg"
+          title="ズームアウト"
+        >
+          −
+        </button>
+        <button
+          onClick={resetView}
+          className="w-full px-3 py-2 bg-slate-600/40 hover:bg-slate-600/60 text-slate-300 rounded transition-all text-xs"
+          title="表示をリセット"
+        >
+          リセット
+        </button>
+        <div className="text-center text-xs text-slate-400 pt-1 border-t border-slate-600">
+          {(zoomLevel * 100).toFixed(0)}%
+        </div>
+      </div>
 
       {/* 凡例 */}
       <div className="absolute top-4 right-4 bg-slate-800/80 backdrop-blur-sm p-4 rounded-lg text-sm">
