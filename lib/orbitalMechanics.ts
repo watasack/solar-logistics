@@ -150,3 +150,44 @@ export function calculateDistanceBetweenBodies(
 
   return distance3D;
 }
+
+/**
+ * 距離からコストを計算（簡易モデル）
+ * @param distance 距離（AU）
+ * @returns コスト（クレジット）
+ */
+export function calculateTransportCost(distance: number): number {
+  // 基本コスト + 距離に応じたコスト（非線形）
+  const baseCost = 100;
+  const distanceCost = distance * distance * 50; // 距離の2乗で増加
+  return Math.round(baseCost + distanceCost);
+}
+
+/**
+ * コストをヒートマップの色に変換
+ * @param cost コスト
+ * @param minCost 最小コスト
+ * @param maxCost 最大コスト
+ * @returns RGB色文字列
+ */
+export function costToHeatmapColor(cost: number, minCost: number, maxCost: number): string {
+  const normalized = Math.max(0, Math.min(1, (cost - minCost) / (maxCost - minCost)));
+
+  // 低コスト（青） -> 中コスト（緑） -> 高コスト（赤）
+  let r, g, b;
+  if (normalized < 0.5) {
+    // 青 -> 緑
+    const t = normalized * 2;
+    r = 0;
+    g = Math.round(255 * t);
+    b = Math.round(255 * (1 - t));
+  } else {
+    // 緑 -> 赤
+    const t = (normalized - 0.5) * 2;
+    r = Math.round(255 * t);
+    g = Math.round(255 * (1 - t));
+    b = 0;
+  }
+
+  return `rgb(${r}, ${g}, ${b})`;
+}

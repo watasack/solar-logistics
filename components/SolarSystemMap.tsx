@@ -3,7 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Colony, Depot, CelestialBody, Route } from '@/lib/types';
 import Tooltip from './Tooltip';
-import { calculateEllipticalPosition, generateEllipsePathData } from '@/lib/orbitalMechanics';
+import {
+  calculateEllipticalPosition,
+  generateEllipsePathData,
+  calculateDistanceBetweenBodies,
+  calculateTransportCost,
+  costToHeatmapColor,
+} from '@/lib/orbitalMechanics';
 
 interface SolarSystemMapProps {
   colonies: Colony[];
@@ -22,6 +28,8 @@ interface Particle {
   size: number;
   opacity: number;
   twinkleSpeed: number;
+  layer: 'near' | 'far' | 'nebula'; // レイヤー分離
+  color?: string; // 星の色（ネビュラ用）
 }
 
 /**
@@ -39,6 +47,7 @@ export default function SolarSystemMap({
 }: SolarSystemMapProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [showCostHeatmap, setShowCostHeatmap] = useState(true);
 
   // SVGのサイズ
   const width = 800;
@@ -47,14 +56,39 @@ export default function SolarSystemMap({
   const centerY = height / 2;
   const scale = 60; // 1AU = 60px
 
-  // パーティクル（星）を初期化 - 銀河面を意識した密度分布
+  // パーティクル（星）を初期化 - レイヤー分離と銀河面を意識した密度分布
   useEffect(() => {
     const newParticles: Particle[] = [];
-    const numStars = 200; // 星の総数を増やす
 
-    for (let i = 0; i < numStars; i++) {
-      // 銀河面（中心の水平線）からの距離に応じて密度を変える
-      // ガウス分布に従って y 座標を生成
+    // ネビュラレイヤー（薄いガス雲）
+    const numNebula = 30;
+    for (let i = 0; i < numNebula; i++) {
+      const gaussianY = () => {
+        let y = 0;
+        for (let j = 0; j < 6; j++) {
+          y += Math.random();
+        }
+        return (y / 6 - 0.5) * height * 0.9 + height / 2;
+      };
+
+      const y = gaussianY();
+      const x = Math.random() * width;
+      const colors = ['#4a5568', '#2d3748', '#1a202c', '#4c51bf', '#805ad5'];
+
+      newParticles.push({
+        x,
+        y,
+        size: Math.random() * 40 + 20,
+        opacity: Math.random() * 0.08 + 0.02,
+        twinkleSpeed: Math.random() * 0.005 + 0.002,
+        layer: 'nebula',
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+
+    // 遠い星レイヤー（固定、視差なし）
+    const numFarStars = 120;
+    for (let i = 0; i < numFarStars; i++) {
       const gaussianY = () => {
         let y = 0;
         for (let j = 0; j < 6; j++) {
@@ -63,24 +97,48 @@ export default function SolarSystemMap({
         return (y / 6 - 0.5) * height * 0.8 + height / 2;
       };
 
-      const y = gaussianY(); // 中心付近に集中
+      const y = gaussianY();
       const x = Math.random() * width;
-
-      // 銀河面からの距離で明るさを変える
       const distanceFromGalacticPlane = Math.abs(y - height / 2) / (height / 2);
-      const baseOpacity = Math.max(0.2, 1 - distanceFromGalacticPlane * 0.8);
-
-      // 星のサイズも距離で変える（近い星は大きく）
-      const sizeVariation = 1 - distanceFromGalacticPlane * 0.5;
+      const baseOpacity = Math.max(0.15, 0.8 - distanceFromGalacticPlane * 0.6);
 
       newParticles.push({
         x,
         y,
-        size: (Math.random() * 1.5 + 0.3) * sizeVariation,
-        opacity: baseOpacity * (Math.random() * 0.5 + 0.5),
-        twinkleSpeed: Math.random() * 0.02 + 0.01,
+        size: Math.random() * 1.2 + 0.3,
+        opacity: baseOpacity * (Math.random() * 0.4 + 0.3),
+        twinkleSpeed: Math.random() * 0.01 + 0.005,
+        layer: 'far',
       });
     }
+
+    // 近い星レイヤー（わずかな視差効果）
+    const numNearStars = 50;
+    for (let i = 0; i < numNearStars; i++) {
+      const gaussianY = () => {
+        let y = 0;
+        for (let j = 0; j < 6; j++) {
+          y += Math.random();
+        }
+        return (y / 6 - 0.5) * height * 0.7 + height / 2;
+      };
+
+      const y = gaussianY();
+      const x = Math.random() * width;
+      const distanceFromGalacticPlane = Math.abs(y - height / 2) / (height / 2);
+      const baseOpacity = Math.max(0.3, 1 - distanceFromGalacticPlane * 0.5);
+      const sizeVariation = 1.2 - distanceFromGalacticPlane * 0.3;
+
+      newParticles.push({
+        x,
+        y,
+        size: (Math.random() * 2 + 0.5) * sizeVariation,
+        opacity: baseOpacity * (Math.random() * 0.6 + 0.4),
+        twinkleSpeed: Math.random() * 0.03 + 0.015,
+        layer: 'near',
+      });
+    }
+
     setParticles(newParticles);
   }, []);
 
@@ -193,6 +251,15 @@ export default function SolarSystemMap({
     return 4;
   };
 
+  // 太陽からの照射角度を計算（惑星の満ち欠け表現用）
+  const getSunAngle = (bodyX: number, bodyY: number): number => {
+    // 太陽は中心にあるため、惑星から太陽へのベクトルを計算
+    const dx = centerX - bodyX;
+    const dy = centerY - bodyY;
+    // atan2で角度を計算（度数法に変換）
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  };
+
   return (
     <div className="w-full h-full bg-slate-950 rounded-lg overflow-hidden relative">
       <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
@@ -300,26 +367,101 @@ export default function SolarSystemMap({
             <stop offset="50%" stopColor="#8C7853" />
             <stop offset="100%" stopColor="#57534e" />
           </radialGradient>
+
+          {/* 位相表現用の照明グラデーション（動的生成） */}
+          {[...colonies, ...depots].map(body => {
+            const pos = getBodyPosition(body);
+            const sunAngle = getSunAngle(pos.x, pos.y);
+
+            // 照射方向に基づいてグラデーションの方向を設定
+            const gradX1 = 50 + 50 * Math.cos((sunAngle + 180) * Math.PI / 180);
+            const gradY1 = 50 + 50 * Math.sin((sunAngle + 180) * Math.PI / 180);
+            const gradX2 = 50 + 50 * Math.cos(sunAngle * Math.PI / 180);
+            const gradY2 = 50 + 50 * Math.sin(sunAngle * Math.PI / 180);
+
+            return (
+              <linearGradient
+                key={`phase-${body.id}`}
+                id={`phase-${body.id}`}
+                x1={`${gradX1}%`}
+                y1={`${gradY1}%`}
+                x2={`${gradX2}%`}
+                y2={`${gradY2}%`}
+              >
+                <stop offset="0%" stopColor="#000000" stopOpacity="0.7" />
+                <stop offset="30%" stopColor="#000000" stopOpacity="0.4" />
+                <stop offset="50%" stopColor="#000000" stopOpacity="0.1" />
+                <stop offset="70%" stopColor="#ffffff" stopOpacity="0.1" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0.3" />
+              </linearGradient>
+            );
+          })}
         </defs>
 
-        {/* 背景の星（パーティクル） */}
-        {particles.map((particle, i) => (
-          <circle
-            key={`particle-${i}`}
-            cx={particle.x}
-            cy={particle.y}
-            r={particle.size}
-            fill="#ffffff"
-            opacity={particle.opacity}
-          >
-            <animate
-              attributeName="opacity"
-              values={`${particle.opacity};${particle.opacity * 0.3};${particle.opacity}`}
-              dur={`${2 + Math.random() * 3}s`}
-              repeatCount="indefinite"
-            />
-          </circle>
-        ))}
+        {/* 背景の星（レイヤー分離） */}
+
+        {/* ネビュラレイヤー（最背面） */}
+        {particles
+          .filter(p => p.layer === 'nebula')
+          .map((particle, i) => (
+            <circle
+              key={`nebula-${i}`}
+              cx={particle.x}
+              cy={particle.y}
+              r={particle.size}
+              fill={particle.color || '#4a5568'}
+              opacity={particle.opacity}
+            >
+              <animate
+                attributeName="opacity"
+                values={`${particle.opacity};${particle.opacity * 0.5};${particle.opacity}`}
+                dur={`${8 + Math.random() * 4}s`}
+                repeatCount="indefinite"
+              />
+            </circle>
+          ))}
+
+        {/* 遠い星レイヤー（固定） */}
+        {particles
+          .filter(p => p.layer === 'far')
+          .map((particle, i) => (
+            <circle
+              key={`far-${i}`}
+              cx={particle.x}
+              cy={particle.y}
+              r={particle.size}
+              fill="#ffffff"
+              opacity={particle.opacity}
+            >
+              <animate
+                attributeName="opacity"
+                values={`${particle.opacity};${particle.opacity * 0.4};${particle.opacity}`}
+                dur={`${3 + Math.random() * 2}s`}
+                repeatCount="indefinite"
+              />
+            </circle>
+          ))}
+
+        {/* 近い星レイヤー（わずかな視差） */}
+        {particles
+          .filter(p => p.layer === 'near')
+          .map((particle, i) => (
+            <circle
+              key={`near-${i}`}
+              cx={particle.x}
+              cy={particle.y}
+              r={particle.size}
+              fill="#ffffff"
+              opacity={particle.opacity}
+            >
+              <animate
+                attributeName="opacity"
+                values={`${particle.opacity};${particle.opacity * 0.2};${particle.opacity}`}
+                dur={`${1.5 + Math.random() * 1.5}s`}
+                repeatCount="indefinite"
+              />
+            </circle>
+          ))}
 
         {/* 太陽 - 強化されたグロー効果 */}
         <g filter="url(#strongGlow)">
@@ -446,36 +588,70 @@ export default function SolarSystemMap({
           );
         })}
 
-        {/* デポとコロニー間の接続線（静的） */}
-        {depots.map(depot => {
-          return colonies.map(colony => {
+        {/* デポとコロニー間の接続線（静的） - コストヒートマップ */}
+        {showCostHeatmap && depots.map(depot => {
+          // 全ての距離とコストを計算
+          const costsForDepot = colonies.map(colony => {
+            const distance = calculateDistanceBetweenBodies(
+              depot,
+              colony,
+              depot.currentAngle,
+              colony.currentAngle
+            );
+            return calculateTransportCost(distance);
+          });
+
+          const minCost = Math.min(...costsForDepot);
+          const maxCost = Math.max(...costsForDepot);
+
+          return colonies.map((colony, index) => {
             const depotPos = polarToCartesian(depot.orbitalRadius, depot.currentAngle);
             const colonyPos = polarToCartesian(colony.orbitalRadius, colony.currentAngle);
 
-            // 距離が近い場合のみ線を引く（3AU以内）
-            const dx = depot.orbitalRadius * Math.cos((depot.currentAngle * Math.PI) / 180) -
-                       colony.orbitalRadius * Math.cos((colony.currentAngle * Math.PI) / 180);
-            const dy = depot.orbitalRadius * Math.sin((depot.currentAngle * Math.PI) / 180) -
-                       colony.orbitalRadius * Math.sin((colony.currentAngle * Math.PI) / 180);
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const distance = calculateDistanceBetweenBodies(
+              depot,
+              colony,
+              depot.currentAngle,
+              colony.currentAngle
+            );
 
+            // 距離が近い場合のみ線を引く（3AU以内）
             if (distance > 3) return null;
 
+            const cost = costsForDepot[index];
             const isHighlighted = hoveredId === depot.id || hoveredId === colony.id;
 
+            // ヒートマップカラーを取得
+            const heatmapColor = costToHeatmapColor(cost, minCost, maxCost);
+
             return (
-              <line
-                key={`connection-${depot.id}-${colony.id}`}
-                x1={depotPos.x}
-                y1={depotPos.y}
-                x2={colonyPos.x}
-                y2={colonyPos.y}
-                stroke={isHighlighted ? "#10b981" : "#334155"}
-                strokeWidth={isHighlighted ? 2 : 1}
-                opacity={isHighlighted ? 0.6 : 0.2}
-                strokeDasharray="4 4"
-                className="transition-all duration-300"
-              />
+              <g key={`connection-${depot.id}-${colony.id}`}>
+                <line
+                  x1={depotPos.x}
+                  y1={depotPos.y}
+                  x2={colonyPos.x}
+                  y2={colonyPos.y}
+                  stroke={isHighlighted ? "#10b981" : heatmapColor}
+                  strokeWidth={isHighlighted ? 3 : 2}
+                  opacity={isHighlighted ? 0.8 : 0.4}
+                  strokeDasharray="4 4"
+                  className="transition-all duration-300"
+                />
+                {/* コスト表示ラベル（ホバー時） */}
+                {isHighlighted && (
+                  <text
+                    x={(depotPos.x + colonyPos.x) / 2}
+                    y={(depotPos.y + colonyPos.y) / 2}
+                    textAnchor="middle"
+                    fill="#ffffff"
+                    fontSize="10"
+                    fontWeight="600"
+                    className="pointer-events-none"
+                  >
+                    {cost}cr ({distance.toFixed(2)}AU)
+                  </text>
+                )}
+              </g>
             );
           });
         })}
@@ -569,6 +745,14 @@ export default function SolarSystemMap({
                     />
                   )}
                 </circle>
+                {/* 位相表現（満ち欠け）レイヤー */}
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={size}
+                  fill={`url(#phase-${colony.id})`}
+                  pointerEvents="none"
+                />
               </g>
 
               {/* 満足度インジケーター */}
@@ -725,6 +909,24 @@ export default function SolarSystemMap({
                     repeatCount="indefinite"
                   />
                 </rect>
+                {/* 位相表現（満ち欠け）レイヤー */}
+                <rect
+                  x={pos.x - size / 2}
+                  y={pos.y - size / 2}
+                  width={size}
+                  height={size}
+                  fill={`url(#phase-${depot.id})`}
+                  rx={2}
+                  pointerEvents="none"
+                >
+                  <animateTransform
+                    attributeName="transform"
+                    type="rotate"
+                    values={`0 ${pos.x} ${pos.y};360 ${pos.x} ${pos.y}`}
+                    dur="20s"
+                    repeatCount="indefinite"
+                  />
+                </rect>
               </g>
 
               <text
@@ -756,6 +958,31 @@ export default function SolarSystemMap({
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-purple-500"></div>
             <span className="text-slate-200">惑星</span>
+          </div>
+          <div className="border-t border-slate-600 my-2 pt-2">
+            <button
+              onClick={() => setShowCostHeatmap(!showCostHeatmap)}
+              className={`flex items-center gap-2 w-full px-2 py-1 rounded transition-all ${
+                showCostHeatmap
+                  ? 'bg-blue-500/20 text-blue-300'
+                  : 'bg-slate-700/50 text-slate-400'
+              }`}
+            >
+              <span className="text-xs">📊</span>
+              <span className="text-xs">コストマップ</span>
+            </button>
+            {showCostHeatmap && (
+              <div className="mt-2 text-xs text-slate-400">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-2 bg-blue-500"></div>
+                  <span>低</span>
+                  <div className="w-3 h-2 bg-green-500"></div>
+                  <span>中</span>
+                  <div className="w-3 h-2 bg-red-500"></div>
+                  <span>高</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -494,6 +494,29 @@ export default function Home() {
             <div className="card-enhanced rounded-xl p-4 animate-slide-in-right" style={{ animationDelay: '0.1s' }}>
               <h2 className="text-lg font-bold mb-3 text-gradient-blue">アクション</h2>
               <div className="space-y-3">
+                {/* 時間加速コントロール */}
+                <div className="glass-effect rounded-lg p-3 border border-slate-600/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-slate-400">時間加速</span>
+                    <span className="text-sm font-mono font-bold text-blue-400">x{gameState.timeScale}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1, 10, 100].map(scale => (
+                      <button
+                        key={scale}
+                        onClick={() => setGameState({ ...gameState, timeScale: scale })}
+                        className={`px-3 py-2 rounded-lg font-mono font-bold text-sm transition-all ${
+                          gameState.timeScale === scale
+                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50'
+                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-600/50'
+                        }`}
+                      >
+                        x{scale}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <Tooltip content="時間を進めて物資を自動配送します" position="left">
                   <button
                     onClick={handleNextTurn}

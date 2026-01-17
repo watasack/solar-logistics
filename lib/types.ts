@@ -132,6 +132,8 @@ export interface GameState {
   month: number;
   // ゲーム内日付（epoch - 2150年1月1日からの日数）
   epoch: number;
+  // 時間加速倍率（1, 10, 100）
+  timeScale: number;
   // 予算
   budget: number;
   // 収入（今月）

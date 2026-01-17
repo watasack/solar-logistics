@@ -23,6 +23,7 @@ export function initializeGame(difficulty: Difficulty = 'normal'): GameState {
     year: 2150,
     month: 1,
     epoch: 0, // 2150年1月1日からの日数
+    timeScale: 1, // デフォルトは通常速度
     budget: diffSettings.initialBudget,
     income: 0,
     expenses: 0,
@@ -51,22 +52,27 @@ export function initializeGame(difficulty: Difficulty = 'normal'): GameState {
 export function advanceTurn(state: GameState): GameState {
   const newState = JSON.parse(JSON.stringify(state)) as GameState;
 
-  // ターン数を進める
-  newState.currentTurn++;
-  newState.month++;
-  if (newState.month > 12) {
-    newState.month = 1;
-    newState.year++;
+  // 時間加速倍率を取得（デフォルト1）
+  const timeScale = newState.timeScale || 1;
+
+  // ターン数を進める（時間加速を考慮）
+  for (let i = 0; i < timeScale; i++) {
+    newState.currentTurn++;
+    newState.month++;
+    if (newState.month > 12) {
+      newState.month = 1;
+      newState.year++;
+    }
   }
 
-  // epoch（日数）を更新（1ターン = 30日）
-  newState.epoch += 30;
+  // epoch（日数）を更新（1ターン = 30日 × 時間加速倍率）
+  newState.epoch += 30 * timeScale;
 
-  // 惑星の位置を更新（公転）
-  updateOrbitalPositions(newState);
+  // 惑星の位置を更新（公転）- 時間加速を考慮
+  updateOrbitalPositions(newState, timeScale);
 
-  // 在庫を消費（需要分を減らす）
-  consumeInventory(newState);
+  // 在庫を消費（需要分を減らす）- 時間加速を考慮
+  consumeInventory(newState, timeScale);
 
   // 輸送中のルートを処理
   processRoutes(newState);
@@ -92,10 +98,10 @@ export function advanceTurn(state: GameState): GameState {
 /**
  * 惑星の軌道位置を更新
  */
-function updateOrbitalPositions(state: GameState): void {
+function updateOrbitalPositions(state: GameState, timeScale: number = 1): void {
   const updateBody = (body: { orbitalPeriod: number; currentAngle: number }) => {
-    // 1ヶ月（30日）進む
-    const days = 30;
+    // 1ヶ月（30日）× 時間加速倍率
+    const days = 30 * timeScale;
     const anglePerDay = 360 / body.orbitalPeriod;
     body.currentAngle = (body.currentAngle + anglePerDay * days) % 360;
   };
@@ -107,12 +113,13 @@ function updateOrbitalPositions(state: GameState): void {
 /**
  * コロニーの在庫を消費
  */
-function consumeInventory(state: GameState): void {
+function consumeInventory(state: GameState, timeScale: number = 1): void {
   for (const colony of state.colonies) {
-    colony.inventory.life_support -= colony.demand.life_support;
-    colony.inventory.fuel -= colony.demand.fuel;
-    colony.inventory.materials -= colony.demand.materials;
-    colony.inventory.equipment -= colony.demand.equipment;
+    // 時間加速倍率に応じて消費量を増やす
+    colony.inventory.life_support -= colony.demand.life_support * timeScale;
+    colony.inventory.fuel -= colony.demand.fuel * timeScale;
+    colony.inventory.materials -= colony.demand.materials * timeScale;
+    colony.inventory.equipment -= colony.demand.equipment * timeScale;
 
     // 在庫がマイナスにならないように
     colony.inventory.life_support = Math.max(0, colony.inventory.life_support);
