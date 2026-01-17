@@ -74,9 +74,15 @@ export default function SolarSystemMap({
   };
 
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    // 天体をクリックした場合はパン操作を開始しない
-    if ((e.target as SVGElement).tagName !== 'svg' &&
-        (e.target as SVGElement).closest('g')?.classList.contains('cursor-pointer')) {
+    // 天体やボタンをクリックした場合はパン操作を開始しない
+    const target = e.target as SVGElement;
+    if (target.tagName !== 'svg' && target.tagName !== 'rect' && target.tagName !== 'circle' && target.tagName !== 'path') {
+      return;
+    }
+
+    // カーソルがクリック可能な要素の上にある場合はスキップ
+    const clickableParent = target.closest('.cursor-pointer');
+    if (clickableParent) {
       return;
     }
 
@@ -86,6 +92,7 @@ export default function SolarSystemMap({
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!isDragging) return;
+    e.preventDefault();
 
     const newPanX = e.clientX - dragStart.x;
     const newPanY = e.clientY - dragStart.y;
@@ -327,7 +334,7 @@ export default function SolarSystemMap({
         ref={svgRef}
         width="100%"
         height="100%"
-        viewBox={`${-panX / zoomLevel} ${-panY / zoomLevel} ${width / zoomLevel} ${height / zoomLevel}`}
+        viewBox={`0 0 ${width} ${height}`}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -480,6 +487,9 @@ export default function SolarSystemMap({
             );
           })}
         </defs>
+
+        {/* ズーム・パン用のグループ */}
+        <g transform={`translate(${centerX}, ${centerY}) scale(${zoomLevel}) translate(${-centerX + panX}, ${-centerY + panY})`}>
 
         {/* 背景の星（レイヤー分離） */}
 
@@ -1070,6 +1080,9 @@ export default function SolarSystemMap({
             </g>
           );
         })}
+
+        {/* ズーム・パングループの終了 */}
+        </g>
       </svg>
 
       {/* ズームコントロール */}
